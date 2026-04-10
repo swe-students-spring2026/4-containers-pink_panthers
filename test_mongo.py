@@ -1,6 +1,7 @@
-from pymongo import MongoClient
+# Test MongoDB connection and insertion
+import pymongo
 
-client = MongoClient("mongodb://localhost:27017/")
+client = pymongo.MongoClient("mongodb://localhost:27017/")
 db = client["outfit_db"]
 collection = db["results"]
 

@@ -1,6 +1,9 @@
-from pymongo import MongoClient
+"""
+Database module for MongoDB operations.
+"""
+import pymongo
 
-client = MongoClient("mongodb://localhost:27017/")
+client = pymongo.MongoClient("mongodb://localhost:27017/")
 db = client["outfit_db"]
 collection = db["results"]
 
