@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Sign Up — FitCheck{% endblock %}
+
+{% block extra_styles %}
+<style>
+    body { background: var(--black); }
+
+    .auth-wrapper {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .auth-card {
+        background: var(--cream);
+        width: 100%;
+        max-width: 420px;
+        padding: 3rem;
+        position: relative;
+    }
+
+    .auth-card::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        right: -8px;
+        bottom: -8px;
+        border: 1.5px solid var(--accent);
+        z-index: -1;
+    }
+
+    .auth-brand {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.1rem;
+        color: var(--accent-dark);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+
+    .auth-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        line-height: 1.1;
+    }
+
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--gray);
+        margin-bottom: 0.4rem;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1.5px solid var(--light-gray);
+        background: var(--white);
+        font-family: 'DM Sans', sans-serif;
+        font-size: 0.95rem;
+        color: var(--black);
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+        border-color: var(--accent);
+    }
+
+    .auth-submit {
+        width: 100%;
+        margin-top: 0.5rem;
+        padding: 0.9rem;
+        text-align: center;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+
+    .auth-footer {
+        margin-top: 1.5rem;
+        text-align: center;
+        font-size: 0.88rem;
+        color: var(--gray);
+    }
+
+    .auth-footer a {
+        color: var(--accent-dark);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .auth-footer a:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <p class="auth-brand">FitCheck ✦</p>
+        <h1 class="auth-title">Sign Up</h1>
+
+        {% if error %}
+            <div class="flash error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/signup">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" autocomplete="username" required />
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" autocomplete="new-password" required />
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required />
+            </div>
+            <button type="submit" class="btn auth-submit">Create Account</button>
+        </form>
+
+        <p class="auth-footer">
+            Already have an account? <a href="/login">Log In</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

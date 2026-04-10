@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FitCheck{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --black: #0a0a0a;
+            --white: #fafafa;
+            --cream: #f5f0e8;
+            --accent: #c8a97e;
+            --accent-dark: #8b6f47;
+            --gray: #6b6b6b;
+            --light-gray: #e8e4de;
+            --match: #4a7c59;
+            --clash: #c0392b;
+            --card-bg: #ffffff;
+            --shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--cream);
+            color: var(--black);
+            min-height: 100vh;
+        }
+
+        nav {
+            background: var(--black);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-logo {
+            font-family: 'Playfair Display', serif;
+            color: var(--accent);
+            font-size: 1.4rem;
+            letter-spacing: 0.05em;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--white);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .nav-links a:hover { opacity: 1; }
+
+        .nav-links a.active {
+            color: var(--accent);
+            opacity: 1;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2.5rem 2rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 2rem;
+            background: var(--black);
+            color: var(--white);
+            border: none;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s, transform 0.15s;
+        }
+
+        .btn:hover {
+            background: var(--accent-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1.5px solid var(--black);
+            color: var(--black);
+        }
+
+        .btn-outline:hover {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .flash {
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1rem;
+            border-left: 3px solid var(--accent);
+            background: var(--white);
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+
+        .flash.error { border-color: var(--clash); }
+        .flash.success { border-color: var(--match); }
+    </style>
+    {% block extra_styles %}{% endblock %}
+</head>
+<body>
+    {% if current_user and current_user.is_authenticated %}
+    <nav>
+        <a href="/" class="nav-logo">FitCheck ✦</a>
+        <ul class="nav-links">
+            <li><a href="/analyze" {% if request.path == '/analyze' %}class="active"{% endif %}>Analyze</a></li>
+            <li><a href="/stats" {% if request.path == '/stats' %}class="active"{% endif %}>Statistics</a></li>
+            <li><a href="/logout">Log Out</a></li>
+        </ul>
+    </nav>
+    {% endif %}
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
