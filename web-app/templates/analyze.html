@@ -4,37 +4,299 @@
 {% block content %}
 <h1>Analyze my Look</h1>
 
-<div style="margin-top: 1.5rem; background: #1a1a1a; aspect-ratio: 16/9; overflow: hidden; position: relative;">
+<div id="cam-wrap" style="margin-top: 1.5rem; background: #1a1a1a; aspect-ratio: 16/9; overflow: hidden; position: relative;">
     <video id="webcam" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: block;"></video>
-    <p id="cam-msg" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #aaa; pointer-events: none;">Click the button to use your camera</p>
+    <canvas id="overlay-canvas" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;"></canvas>
+    <div id="cd" style="display: none; position: absolute; inset: 0; align-items: center; justify-content: center; z-index: 4; background: rgba(0,0,0,0.4); font-family: 'Playfair Display', serif; font-size: clamp(3rem, 12vw, 5rem); color: #fafafa; pointer-events: none;">3</div>
+    <p id="cam-msg" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #aaa; text-align: center; padding: 1rem; z-index: 2; pointer-events: none;">Start camera</p>
 </div>
-<p style="margin-top: 0.75rem;">
-    <button type="button" class="btn" id="cam-start">Start camera</button>
-</p>
+<p style="margin-top: 0.75rem;"><button type="button" class="btn" id="cam-start">Start camera</button></p>
 
+<div style="margin-top: 1rem; background: #d9d9d9; padding: 1.5rem;">
+    <p><strong>Top:</strong> <span id="c-top">—</span></p>
+    <p style="margin-top: 0.5rem;"><strong>Bottom:</strong> <span id="c-bot">—</span></p>
+    <p style="margin-top: 0.5rem; font-size: 0.88rem; color: #666;">Hold still with torso in frame — 3-2-1 then use <strong>Download JPG</strong> below to save.</p>
+</div>
+
+<div id="cap-prev" style="display: none; margin-top: 1rem; padding: 1rem; background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+    <p style="font-weight: 600;">Last capture</p>
+    <img id="cap-img" alt="capture" style="max-width: 100%; max-height: 280px; margin-top: 0.5rem; border: 1px solid #e8e4de;" />
+    <p id="cap-meta" style="margin-top: 0.75rem; font-size: 0.9rem;"></p>
+    <a id="cap-dl" class="btn" href="#" download style="margin-top: 0.5rem; display: inline-block;">Download JPG</a>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 <script>
 (function () {
+    var CDN = "https://cdn.jsdelivr.net/npm/@mediapipe/pose/";
     var v = document.getElementById("webcam");
     var msg = document.getElementById("cam-msg");
-    document.getElementById("cam-start").onclick = function () {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            msg.textContent = "Camera not supported in this browser.";
+    var elT = document.getElementById("c-top");
+    var elB = document.getElementById("c-bot");
+    var ov = document.getElementById("overlay-canvas");
+    var octx = ov.getContext("2d");
+    var cdEl = document.getElementById("cd");
+    var capBox = document.getElementById("cap-prev");
+    var capImg = document.getElementById("cap-img");
+    var capDl = document.getElementById("cap-dl");
+    var capMeta = document.getElementById("cap-meta");
+    var work = document.createElement("canvas");
+    var wctx = work.getContext("2d", { willReadFrequently: true });
+
+    var pose,
+        t0 = 0,
+        ready,
+        stable = 0,
+        capMode = "idle",
+        cdTimer,
+        jpgUrl,
+        colors = null;
+
+    function toHex(r, g, b) {
+        function h(x) {
+            x = Math.round(x).toString(16);
+            return x.length < 2 ? "0" + x : x;
+        }
+        return "#" + h(r) + h(g) + h(b);
+    }
+
+    function bands(lm) {
+        if (!lm || lm.length < 25) return null;
+        var a = lm[11], b = lm[12], c = lm[23], d = lm[24], e = lm[27], f = lm[28];
+        if (!a || !b || !c || !d) return null;
+        if ((a.visibility || 0) < 0.15 || (b.visibility || 0) < 0.15) return null;
+        if ((c.visibility || 0) < 0.15 || (d.visibility || 0) < 0.15) return null;
+        var ys = Math.min(a.y, b.y), yh = (c.y + d.y) / 2, yf = Math.max(e ? e.y : 1, f ? f.y : 1);
+        if (yf < yh + 0.02) yf = 1;
+        var x0 = Math.min(a.x, b.x, c.x, d.x) - 0.05, x1 = Math.max(a.x, b.x, c.x, d.x) + 0.05;
+        x0 = Math.max(0, x0);
+        x1 = Math.min(1, x1);
+        if (yh <= ys + 0.01 || x1 <= x0) return null;
+        return { x0: x0, x1: x1, ys: ys, yh: yh, yf: yf };
+    }
+
+    function scr(nx, ny, iw, ih, dw, dh) {
+        var s = Math.max(dw / iw, dh / ih), ox = (dw - iw * s) / 2, oy = (dh - ih * s) / 2;
+        return { x: nx * iw * s + ox, y: ny * ih * s + oy };
+    }
+
+    function drawRects(lm) {
+        var dw = v.clientWidth, dh = v.clientHeight, iw = v.videoWidth, ih = v.videoHeight;
+        ov.width = dw;
+        ov.height = dh;
+        octx.clearRect(0, 0, dw, dh);
+        var g = bands(lm);
+        if (!g || dw < 2 || !iw) return;
+        var p = scr(g.x0, g.ys, iw, ih, dw, dh), q = scr(g.x1, g.yh, iw, ih, dw, dh);
+        var r = scr(g.x0, g.yh, iw, ih, dw, dh), s = scr(g.x1, g.yf, iw, ih, dw, dh);
+        octx.lineWidth = 2;
+        octx.strokeStyle = "#0a0a0a";
+        octx.strokeRect(p.x, p.y, q.x - p.x, q.y - p.y);
+        octx.strokeRect(r.x, r.y, s.x - r.x, s.y - r.y);
+    }
+
+    function maxBin(m) {
+        var w, n = 0, k, e;
+        for (k in m) {
+            e = m[k];
+            if (e.n > n) {
+                n = e.n;
+                w = e;
+            }
+        }
+        return w ? toHex(w.r / w.n, w.g / w.n, w.b / w.n) : null;
+    }
+
+    function bump(m, r, g, b) {
+        var k = (r >> 4) + "," + (g >> 4) + "," + (b >> 4), e = m[k];
+        if (!e) m[k] = { n: 1, r: r, g: g, b: b };
+        else {
+            e.n++;
+            e.r += r;
+            e.g += g;
+            e.b += b;
+        }
+    }
+
+    function dominant(lm, vw, vh) {
+        var g = bands(lm);
+        if (!g) return null;
+        var ys = g.ys * vh, yh = g.yh * vh, yf = g.yf * vh, x0 = g.x0 * vw, x1 = g.x1 * vw;
+        work.width = vw;
+        work.height = vh;
+        try {
+            wctx.drawImage(v, 0, 0, vw, vh);
+        } catch (e) {
+            return null;
+        }
+        var d = wctx.getImageData(0, 0, vw, vh).data, st = Math.max(1, (Math.max(vw, vh) / 80) | 0);
+        var T = {}, B = {}, y, x, i, r, gc, b;
+        for (y = 0; y < vh; y += st) {
+            for (x = 0 | x0; x < x1; x += st) {
+                i = ((0 | y) * vw + x) * 4;
+                r = d[i];
+                gc = d[i + 1];
+                b = d[i + 2];
+                if (y >= ys && y < yh) bump(T, r, gc, b);
+                else if (y >= yh && y <= yf) bump(B, r, gc, b);
+            }
+        }
+        var top = maxBin(T), bot = maxBin(B);
+        return top && bot ? { top: top, bot: bot } : null;
+    }
+
+    function swatch(hex) {
+        return (
+            '<span style="display:inline-block;width:16px;height:16px;border-radius:3px;vertical-align:middle;margin:0 6px 0 0;border:1px solid rgba(0,0,0,0.12);background:' +
+            hex +
+            '"></span><code>' +
+            hex +
+            "</code>"
+        );
+    }
+    function paintSw(el, hex) {
+        el.innerHTML = swatch(hex);
+    }
+
+    function snap() {
+        var iw = v.videoWidth, ih = v.videoHeight;
+        if (!iw) return;
+        var c = colors && colors.top && colors.bot ? { top: colors.top, bot: colors.bot } : null;
+        var t = new Date(), cv = document.createElement("canvas"), x = cv.getContext("2d");
+        cv.width = iw;
+        cv.height = ih;
+        x.drawImage(v, 0, 0, iw, ih);
+        if (c) {
+            var fs = Math.max(13, (iw * 0.028) | 0), sq = fs + 6, gap = 10, bar = Math.max(76, 2 * (sq + gap) + 16), y0 = ih - bar + 12, j, lab, hc, yy;
+            x.fillStyle = "rgba(0,0,0,0.68)";
+            x.fillRect(0, ih - bar, iw, bar);
+            x.font = "600 " + fs + "px sans-serif";
+            x.textBaseline = "middle";
+            for (j = 0; j < 2; j++) {
+                lab = j ? "Bottom" : "Top";
+                hc = j ? c.bot : c.top;
+                yy = y0 + j * (sq + gap);
+                x.fillStyle = hc;
+                x.fillRect(12, yy, sq, sq);
+                x.strokeStyle = "rgba(255,255,255,0.85)";
+                x.lineWidth = 1;
+                x.strokeRect(12, yy, sq, sq);
+                x.fillStyle = "#fafafa";
+                x.fillText(lab + "  " + hc, 12 + sq + 10, yy + sq / 2);
+            }
+        }
+        cv.toBlob(function (blob) {
+            if (!blob) return;
+            if (jpgUrl) URL.revokeObjectURL(jpgUrl);
+            var name = "fitcheck-" + t.getTime() + ".jpg";
+            jpgUrl = URL.createObjectURL(blob);
+            capImg.src = jpgUrl;
+            capDl.href = jpgUrl;
+            capDl.download = name;
+            capMeta.innerHTML = c
+                ? "<strong>Top</strong> " +
+                  swatch(c.top) +
+                  "<br><strong>Bottom</strong> " +
+                  swatch(c.bot) +
+                  "<br><span style='color:#666'>" +
+                  t.toLocaleString() +
+                  "</span>"
+                : t.toLocaleString();
+            capBox.style.display = "block";
+        }, "image/jpeg", 0.9);
+    }
+
+    function runCd() {
+        if (capMode !== "idle") return;
+        capMode = "cd";
+        cdEl.style.display = "flex";
+        cdEl.textContent = "3";
+        var n = 3;
+        cdTimer = setInterval(function () {
+            n--;
+            if (n >= 1) cdEl.textContent = String(n);
+            else {
+                clearInterval(cdTimer);
+                cdTimer = null;
+                cdEl.style.display = "none";
+                snap();
+                capMode = "wait";
+                setTimeout(function () {
+                    capMode = "idle";
+                }, 10000);
+            }
+        }, 1000);
+    }
+
+    function tick(T) {
+        T = T || performance.now();
+        if (pose && v.srcObject && v.videoWidth && T - t0 > 80) {
+            t0 = T;
+            pose.send({ image: v });
+        }
+        requestAnimationFrame(tick);
+    }
+
+    function init() {
+        if (typeof Pose === "undefined") {
+            msg.textContent = "MediaPipe failed to load.";
             return;
         }
-        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-            .then(function (stream) {
-                v.srcObject = stream;
+        pose = new Pose({ locateFile: function (f) { return CDN + f; } });
+        pose.setOptions({
+            modelComplexity: 0,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.35,
+            minTrackingConfidence: 0.35,
+        });
+        pose.onResults(function (r) {
+            if (!ready) {
+                ready = true;
                 msg.style.display = "none";
+            }
+            var lm = r.poseLandmarks, vw = v.videoWidth, vh = v.videoHeight, g = bands(lm),
+                ok = g && g.yh - g.ys > 0.055 && g.yf - g.yh > 0.065;
+            if (capMode === "cd" && !ok) {
+                if (cdTimer) clearInterval(cdTimer);
+                cdTimer = null;
+                cdEl.style.display = "none";
+                capMode = "idle";
+                stable = 0;
+            }
+            var col = lm ? dominant(lm, vw, vh) : null;
+            drawRects(lm);
+            if (col) {
+                colors = col;
+                paintSw(elT, col.top);
+                paintSw(elB, col.bot);
+            }
+            if (capMode !== "idle") return;
+            if (ok && col) {
+                if (++stable > 20) {
+                    stable = 0;
+                    runCd();
+                }
+            } else stable = 0;
+        });
+        requestAnimationFrame(tick);
+    }
+
+    document.getElementById("cam-start").onclick = function () {
+        navigator.mediaDevices
+            .getUserMedia({ video: { facingMode: "user" }, audio: false })
+            .then(function (s) {
+                v.srcObject = s;
+                msg.textContent = "Loading…";
+                v.onloadeddata = function () {
+                    if (!pose) init();
+                };
             })
             .catch(function () {
-                msg.textContent = "Could not access camera.";
-                msg.style.display = "flex";
+                msg.textContent = "Camera blocked.";
             });
     };
 })();
 </script>
-
-<div style="margin-top: 1rem; background: #d9d9d9; padding: 1.5rem;">
-    <p>Your Colors Are: Color1 &nbsp;&nbsp; Color2 &nbsp;&nbsp; Color3 &nbsp;&nbsp;&nbsp;&nbsp; Your Coordination Result is: ____</p>
-</div>
 {% endblock %}
