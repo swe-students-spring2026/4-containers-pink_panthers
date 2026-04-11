@@ -1,5 +1,15 @@
 """
 Test file to verify ML container is running correctly.
+And to verify that the database connection is working correctly.
 """
 
-print("ML container is running!")
+from db import insert_result
+
+sample_result = {
+    "colors": ["blue", "white"],
+    "result": "match",
+}
+
+insert_result(sample_result)
+
+print("Inserted test result!")
