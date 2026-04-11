@@ -1,6 +1,7 @@
 """
 Database module for MongoDB operations.
 """
+
 import os
 import pymongo
 
