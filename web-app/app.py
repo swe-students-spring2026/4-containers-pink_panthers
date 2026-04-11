@@ -2,6 +2,7 @@
 
 import os
 from types import SimpleNamespace
+from db import get_latest
 
 from flask import Flask, redirect, render_template, url_for
 
@@ -18,6 +19,13 @@ def _ctx():
 @app.route("/")
 def index():
     return redirect(url_for("analyze"))
+
+
+@app.route("/latest")
+def latest():
+    """Show the latest analysis result."""
+    data = get_latest()
+    return str(data)
 
 
 @app.route("/login", methods=["GET", "POST"])
