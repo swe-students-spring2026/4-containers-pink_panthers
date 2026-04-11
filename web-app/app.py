@@ -2,9 +2,8 @@
 
 import os
 from types import SimpleNamespace
-from db import get_latest
-
 from flask import Flask, redirect, render_template, url_for
+from db import get_latest
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev")
