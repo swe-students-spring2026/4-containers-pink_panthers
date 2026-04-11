@@ -30,6 +30,7 @@ def latest():
     data["_id"] = str(data["_id"])
     return str(data)
 
+
 @app.route("/results")
 def results():
     """Return latest analysis result as JSON."""
