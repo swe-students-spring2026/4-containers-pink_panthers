@@ -2,8 +2,8 @@
 
 import os
 from types import SimpleNamespace
-
 from flask import Flask, redirect, render_template, url_for
+from db import get_latest
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev")
@@ -18,6 +18,13 @@ def _ctx():
 @app.route("/")
 def index():
     return redirect(url_for("analyze"))
+
+
+@app.route("/latest")
+def latest():
+    """Show the latest analysis result."""
+    data = get_latest()
+    return str(data)
 
 
 @app.route("/login", methods=["GET", "POST"])

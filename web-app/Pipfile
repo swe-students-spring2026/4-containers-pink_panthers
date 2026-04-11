@@ -7,9 +7,9 @@ name = "pypi"
 pylint = "*"
 black = "*"
 flask = "*"
+pymongo = "*"
 
 [dev-packages]
 
 [requires]
 python_version = "3.11"
- 
