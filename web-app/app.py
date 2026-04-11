@@ -2,7 +2,7 @@
 
 import os
 from types import SimpleNamespace
-from flask import Flask, redirect, render_template, url_for
+from flask import Flask, redirect, render_template, url_for, jsonify
 from db import get_latest
 
 app = Flask(__name__)
@@ -24,7 +24,23 @@ def index():
 def latest():
     """Show the latest analysis result."""
     data = get_latest()
+    if not data:
+        return "No results found"
+
+    data["_id"] = str(data["_id"])
     return str(data)
+
+
+@app.route("/results")
+def results():
+    """Return latest analysis result as JSON."""
+    data = get_latest()
+
+    if not data:
+        return jsonify({"message": "No results found"}), 404
+
+    data["_id"] = str(data["_id"])
+    return jsonify(data)
 
 
 @app.route("/login", methods=["GET", "POST"])
