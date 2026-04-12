@@ -1,12 +1,25 @@
-# pylint: disable=missing-module-docstring,missing-function-docstring
-
 import os
+from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
-from flask import Flask, redirect, render_template, url_for, jsonify
-from db import get_latest
+
+from dotenv import load_dotenv
+from flask import Flask, jsonify, redirect, render_template, request, url_for
+from pymongo.errors import PyMongoError
+from werkzeug.exceptions import RequestEntityTooLarge
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
+from db import insert_outfit
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev")
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def _too_large(_e):
+    return jsonify({"ok": False, "error": "payload_too_large"}), 413
 
 
 @app.context_processor
@@ -20,27 +33,47 @@ def index():
     return redirect(url_for("analyze"))
 
 
-@app.route("/latest")
-def latest():
-    """Show the latest analysis result."""
-    data = get_latest()
-    if not data:
-        return "No results found"
+@app.route("/api/outfit", methods=["POST"])
+def api_save_outfit():
+    payload = request.get_json(silent=True) or {}
+    top = (payload.get("top") or "").strip()
+    bottom = (payload.get("bottom") or "").strip()
+    photo_b64 = payload.get("photo")
+    ts = payload.get("timestamp")
+    if not top or not bottom or not photo_b64:
+        return jsonify({"error": "top, bottom, and photo are required"}), 400
+    if not top.startswith("#") or not bottom.startswith("#"):
+        return jsonify({"error": "top and bottom must be #RRGGBB hex"}), 400
 
-    data["_id"] = str(data["_id"])
-    return str(data)
+    score = 0
+    if not ts:
+        ts = datetime.now(timezone.utc).isoformat()
 
+    doc = {
+        "top": top,
+        "bottom": bottom,
+        "coordination_score": score,
+        "timestamp": ts,
+        "photo": photo_b64,
+        "photo_mime": "image/jpeg",
+    }
+    try:
+        oid = insert_outfit(doc)
+    except PyMongoError as exc:
+        return jsonify(
+            {"ok": False, "error": "database_error", "detail": str(exc)}
+        ), 503
 
-@app.route("/results")
-def results():
-    """Return latest analysis result as JSON."""
-    data = get_latest()
-
-    if not data:
-        return jsonify({"message": "No results found"}), 404
-
-    data["_id"] = str(data["_id"])
-    return jsonify(data)
+    return jsonify(
+        {
+            "ok": True,
+            "id": str(oid),
+            "coordination_score": score,
+            "top": top,
+            "bottom": bottom,
+            "timestamp": ts,
+        }
+    )
 
 
 @app.route("/login", methods=["GET", "POST"])

@@ -1,15 +1,11 @@
-"""
-Database helper for the web app.
-"""
-
 import os
+
 import pymongo
 
-client = pymongo.MongoClient(os.environ.get("MONGO_URI", "mongodb://localhost:27017/"))
+client = pymongo.MongoClient(os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/"))
 db = client["outfit_db"]
-collection = db["results"]
+collection = db["outfits"]
 
 
-def get_latest():
-    """Return the most recent MongoDB document."""
-    return collection.find_one(sort=[("_id", -1)])
+def insert_outfit(doc):
+    return collection.insert_one(doc).inserted_id

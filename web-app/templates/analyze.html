@@ -195,7 +195,7 @@
             capImg.src = jpgUrl;
             capDl.href = jpgUrl;
             capDl.download = name;
-            capMeta.innerHTML = c
+            var baseMeta = c
                 ? "<strong>Top</strong> " +
                   swatch(c.top) +
                   "<br><strong>Bottom</strong> " +
@@ -204,7 +204,66 @@
                   t.toLocaleString() +
                   "</span>"
                 : t.toLocaleString();
+            capMeta.innerHTML = baseMeta + (c ? "<br><em>Saving outfit…</em>" : "");
             capBox.style.display = "block";
+            if (!c) return;
+            var fr = new FileReader();
+            fr.onloadend = function () {
+                var b64 = String(fr.result).split(",")[1];
+                fetch("/api/outfit", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        top: c.top,
+                        bottom: c.bot,
+                        timestamp: t.toISOString(),
+                        photo: b64,
+                    }),
+                })
+                    .then(function (r) {
+                        return r.text().then(function (text) {
+                            var data = {};
+                            try {
+                                data = text ? JSON.parse(text) : {};
+                            } catch (e1) {
+                                data = {
+                                    error: "bad_response",
+                                    _raw: text.slice(0, 120),
+                                };
+                            }
+                            return { httpOk: r.ok, status: r.status, data: data };
+                        });
+                    })
+                    .then(function (res) {
+                        var d = res.data;
+                        if (res.httpOk && d.ok) {
+                            capMeta.innerHTML =
+                                baseMeta +
+                                "<br><strong>Coordination</strong> " +
+                                d.coordination_score +
+                                "/100 · <span style='color:#4a7c59'>saved</span>";
+                            return;
+                        }
+                        var msg =
+                            (d.error && d.detail ? d.error + ": " + d.detail : null) ||
+                            d.error ||
+                            (d._raw ? "not JSON (" + d._raw + ")" : null) ||
+                            "HTTP " + res.status;
+                        capMeta.innerHTML =
+                            baseMeta +
+                            "<br><span style='color:#c0392b'>Not saved — " +
+                            msg +
+                            "</span>";
+                    })
+                    .catch(function (err) {
+                        capMeta.innerHTML =
+                            baseMeta +
+                            "<br><span style='color:#c0392b'>Not saved — " +
+                            (err.message || "fetch failed") +
+                            "</span>";
+                    });
+            };
+            fr.readAsDataURL(blob);
         }, "image/jpeg", 0.9);
     }
 
