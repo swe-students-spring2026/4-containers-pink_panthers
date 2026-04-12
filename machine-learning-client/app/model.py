@@ -15,6 +15,7 @@ from sklearn.ensemble import RandomForestRegressor
 
 
 class OutfitModel:
+
     def __init__(self, mongo_uri: str = "mongodb://localhost:27017/") -> None:
         self.client = MongoClient(mongo_uri)
         self.db = self.client["outfit_db"]
@@ -56,7 +57,7 @@ class OutfitModel:
 
     def train(self) -> None:
         """
-        Train the regression model.
+        Train the model.
         """
         X, y = self.load_training_data()
 
