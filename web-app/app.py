@@ -1,14 +1,12 @@
+"""FitCheck Flask application."""
+
 import os
 from datetime import datetime, timezone
-from pathlib import Path
 from types import SimpleNamespace
 
-from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from pymongo.errors import PyMongoError
 from werkzeug.exceptions import RequestEntityTooLarge
-
-load_dotenv(Path(__file__).resolve().parent / ".env")
 
 from db import insert_outfit
 
@@ -19,22 +17,25 @@ app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 
 @app.errorhandler(RequestEntityTooLarge)
 def _too_large(_e):
+    """Return JSON when request body exceeds MAX_CONTENT_LENGTH."""
     return jsonify({"ok": False, "error": "payload_too_large"}), 413
 
 
 @app.context_processor
 def _ctx():
-    # base.html shows nav when current_user.is_authenticated
+    """Expose a stub current_user for templates."""
     return {"current_user": SimpleNamespace(is_authenticated=True, id="guest")}
 
 
 @app.route("/")
 def index():
+    """Redirect home to the analyze page."""
     return redirect(url_for("analyze"))
 
 
 @app.route("/api/outfit", methods=["POST"])
 def api_save_outfit():
+    """Accept JSON outfit payload and persist it to MongoDB."""
     payload = request.get_json(silent=True) or {}
     top = (payload.get("top") or "").strip()
     bottom = (payload.get("bottom") or "").strip()
@@ -78,26 +79,31 @@ def api_save_outfit():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    """Render the login page."""
     return render_template("login.html")
 
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
+    """Render the signup page."""
     return render_template("signup.html")
 
 
 @app.route("/logout")
 def logout():
+    """Redirect to the login page."""
     return redirect(url_for("login"))
 
 
 @app.route("/analyze")
 def analyze():
+    """Render the webcam / outfit capture page."""
     return render_template("analyze.html")
 
 
 @app.route("/stats")
 def stats():
+    """Render the stats page."""
     return render_template("stats.html")
 
 
