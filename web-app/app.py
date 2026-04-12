@@ -61,9 +61,10 @@ def api_save_outfit():
     try:
         oid = insert_outfit(doc)
     except PyMongoError as exc:
-        return jsonify(
-            {"ok": False, "error": "database_error", "detail": str(exc)}
-        ), 503
+        return (
+            jsonify({"ok": False, "error": "database_error", "detail": str(exc)}),
+            503,
+        )
 
     return jsonify(
         {
