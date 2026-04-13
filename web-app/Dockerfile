@@ -17,7 +17,7 @@ ADD . .
 ENV FLASK_APP=app.py
 
 # Expose Flask port
-EXPOSE 5000
+EXPOSE 3000
 
 # Run Flask app
 CMD ["python3", "-m", "flask", "run", "--host=0.0.0.0"]

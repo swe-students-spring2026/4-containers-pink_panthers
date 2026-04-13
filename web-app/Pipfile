@@ -11,6 +11,8 @@ pymongo = "*"
 python-dotenv = "*"
 
 [dev-packages]
+pytest = "*"
+coverage = "*"
 
 [requires]
 python_version = "3.11"
