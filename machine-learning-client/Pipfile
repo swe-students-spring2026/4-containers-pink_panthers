@@ -6,7 +6,11 @@ name = "pypi"
 [packages]
 pylint = "*"
 black = "*"
+numpy = "*"
+scikit-learn = "*"
 pymongo = "*"
+pytest = "*"
+pytest-cov = "*"
 
 [dev-packages]
 pytest = "*"
