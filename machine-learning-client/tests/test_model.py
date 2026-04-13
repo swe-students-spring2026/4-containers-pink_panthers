@@ -43,8 +43,10 @@ def test_load_training_data():
 
 def test_evaluate_outfit():
     fake_training = FakeCollection()
+    fake_results = FakeCollection()
 
-    model = OutfitModel(training_collection=fake_training)
+    model = OutfitModel(training_collection=fake_training,
+                        results_collection=fake_results)
 
     model.model.fit([[255, 0, 0, 0, 0, 0]], [1.0])
     model.trained = True
