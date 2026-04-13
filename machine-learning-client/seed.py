@@ -1,3 +1,7 @@
+"""
+Seed script for inserting data into database
+"""
+
 from pymongo import MongoClient
 
 client = MongoClient("mongodb://localhost:27017/")
