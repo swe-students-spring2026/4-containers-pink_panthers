@@ -2,23 +2,27 @@
 
 import os
 from datetime import datetime, timezone
-from types import SimpleNamespace
 
 from flask import (
-    Flask, 
-    jsonify, 
-    redirect, 
-    render_template, 
-    request, 
-    url_for, 
-    session, 
+    Flask,
     flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
 from pymongo.errors import PyMongoError
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from db import insert_outfit, create_user, find_user_by_username, update_last_login
+from db import (
+    create_user,
+    find_user_by_username,
+    insert_outfit,
+    update_last_login,
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev")
@@ -43,6 +47,7 @@ def _ctx():
             "username": username,
         }
     }
+
 
 @app.route("/")
 def index():
@@ -97,7 +102,7 @@ def api_save_outfit():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    """Render the login page."""
+    """Render login page on GET and authenticate on POST."""
     if request.method == "GET":
         return render_template("login.html")
     
@@ -135,7 +140,7 @@ def signup():
     password = request.form.get("password", "")
     confirm_password = request.form.get("confirm_password", "")
 
-    #basic validation
+    # Basic validation
     if len(username) < 3:
         return render_template(
             "signup.html",
@@ -170,7 +175,7 @@ def signup():
 
 @app.route("/logout")
 def logout():
-    """Redirect to the login page."""
+    """Clear the session and redirect to the login page."""
     session.clear()
     flash("You have been logged out.", "success")
     return redirect(url_for("login"))
