@@ -2,11 +2,11 @@ services:
   web:
     build: ./web-app
     ports:
-      - "3000:3000"
+      - "${WEB_PORT:-3000}:3000"
     environment:
-      MONGO_URI: mongodb://mongodb:27017/
-      SECRET_KEY: dev
-      PORT: "3000"
+      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
+      SECRET_KEY: ${SECRET_KEY:-dev}
+      PORT: "${WEB_PORT:-3000}"
     depends_on:
       - mongodb
     command: python app.py
@@ -14,13 +14,15 @@ services:
   ml:
     build: ./machine-learning-client
     environment:
-      MONGO_URI: mongodb://mongodb:27017/
-      PORT: "5001"
+      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
+      PORT: "${ML_PORT:-5001}"
     depends_on:
       - mongodb
     command: python main.py
 
   mongodb:
     image: mongo:latest
+    ports:
+      - "${MONGO_HOST_PORT:-27017}:27017"
     volumes:
       - ./db:/data/db
