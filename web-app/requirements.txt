@@ -1,3 +1,5 @@
 pymongo
 flask
 python-dotenv
+pytest
+pytest-flask
