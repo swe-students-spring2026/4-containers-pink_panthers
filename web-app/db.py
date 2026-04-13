@@ -15,7 +15,10 @@ db = client["outfit_db"]
 users_collection = db["users"]
 outfits_collection = db["outfits"]
 
-users_collection.create_index("username", unique=True)
+
+def init_db():
+    """Initialize database indexes."""
+    users_collection.create_index("username", unique=True)
 
 
 def create_user(username, password_hash):

@@ -20,11 +20,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from db import (
     create_user,
     find_user_by_username,
+    init_db,
     insert_outfit,
     update_last_login,
 )
 
 app = Flask(__name__)
+if os.environ.get("SKIP_DB_INIT") != "1":
+    init_db()
 app.secret_key = os.environ.get("SECRET_KEY", "dev")
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 
