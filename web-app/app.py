@@ -105,7 +105,7 @@ def login():
     """Render login page on GET and authenticate on POST."""
     if request.method == "GET":
         return render_template("login.html")
-    
+
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
 
@@ -115,13 +115,13 @@ def login():
             "login.html",
             error="Invalid username or password.",
         )
-    
+
     if not check_password_hash(user["password_hash"], password):
         return render_template(
             "login.html",
             error="Invalid username or password.",
         )
-    
+
     session["user_id"] = str(user["_id"])
     session["username"] = user["username"]
     update_last_login(user["_id"])
