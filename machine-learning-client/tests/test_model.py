@@ -1,9 +1,12 @@
 import pytest
 from app.model import OutfitModel
+from tests.fake_collection import FakeCollection
 
 
 def test_prediction_runs():
-    model = OutfitModel()
+    fake_training = FakeCollection()
+
+    model = OutfitModel(training_collection=fake_training)
 
     model.model.fit([[255, 0, 0, 0, 0, 0]], [1.0])
     model.trained = True
@@ -14,14 +17,18 @@ def test_prediction_runs():
 
 
 def test_model_requires_training():
-    model = OutfitModel()
+    fake_training = FakeCollection()
+
+    model = OutfitModel(training_collection=fake_training)
 
     with pytest.raises(RuntimeError):
         model.predict_score((255, 0, 0), (0, 0, 0))
 
 
 def test_load_training_data():
-    model = OutfitModel()
+    fake_training = FakeCollection()
+
+    model = OutfitModel(training_collection=fake_training)
 
     # mock collection directly
     model.training_collection.insert_one(
@@ -35,7 +42,9 @@ def test_load_training_data():
 
 
 def test_evaluate_outfit():
-    model = OutfitModel()
+    fake_training = FakeCollection()
+
+    model = OutfitModel(training_collection=fake_training)
 
     model.model.fit([[255, 0, 0, 0, 0, 0]], [1.0])
     model.trained = True
@@ -46,7 +55,9 @@ def test_evaluate_outfit():
 
 
 def test_train_runs():
-    model = OutfitModel()
+    fake_training = FakeCollection()
+
+    model = OutfitModel(training_collection=fake_training)
 
     model.training_collection.insert_one(
         {"top_color": [255, 0, 0], "bottom_color": [0, 0, 0], "score": 1.0}
@@ -58,7 +69,9 @@ def test_train_runs():
 
 
 def test_empty_database_raises_error():
-    model = OutfitModel("mongodb://localhost:27017/test_db")
+    fake_training = FakeCollection()
+
+    model = OutfitModel(training_collection=fake_training)
 
     # Make sure DB is empty OR point to a fake collection
     model.training_collection.delete_many({})

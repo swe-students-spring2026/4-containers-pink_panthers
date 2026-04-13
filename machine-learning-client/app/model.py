@@ -16,12 +16,13 @@ from sklearn.ensemble import RandomForestRegressor
 
 class OutfitModel:
 
-    def __init__(self, mongo_uri: str = "mongodb://localhost:27017/") -> None:
-        self.client = MongoClient(mongo_uri)
+    def __init__(self, training_collection=None, results_collection=None):
+        self.client = MongoClient("mongodb://localhost:27017/")
         self.db = self.client["outfit_db"]
 
-        self.training_collection = self.db["training_data"]
-        self.results_collection = self.db["results"]
+        # fallback to real DB ONLY if not provided
+        self.training_collection = training_collection or self.db["training_data"]
+        self.results_collection = results_collection or self.db["results"]
 
         self.model = RandomForestRegressor(n_estimators=100, random_state=42)
         self.trained = False
