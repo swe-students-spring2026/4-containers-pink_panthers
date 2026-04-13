@@ -5,7 +5,7 @@ Database module for MongoDB operations.
 import os
 import pymongo
 
-client = pymongo.MongoClient(os.environ.get("MONGO_URI", "mongodb://localhost:27017/"))
+client = pymongo.MongoClient(os.environ.get("MONGO_URI", "mongodb://mongodb:27017/"))
 db = client["outfit_db"]
 collection = db["results"]
 
