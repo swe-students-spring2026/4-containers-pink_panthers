@@ -4,11 +4,21 @@ import os
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Flask, 
+    jsonify, 
+    redirect, 
+    render_template, 
+    request, 
+    url_for, 
+    session, 
+    flash,
+)
 from pymongo.errors import PyMongoError
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.security import generate_password_hash, check_password_hash
 
-from db import insert_outfit
+from db import insert_outfit, create_user, find_user_by_username, update_last_login
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev")
@@ -23,9 +33,16 @@ def _too_large(_e):
 
 @app.context_processor
 def _ctx():
-    """Expose a stub current_user for templates."""
-    return {"current_user": SimpleNamespace(is_authenticated=True, id="guest")}
-
+    """Expose current user info from session for templates."""
+    user_id = session.get("user_id")
+    username = session.get("username")
+    return {
+        "current_user": {
+            "is_authenticated": bool(user_id),
+            "id": user_id,
+            "username": username,
+        }
+    }
 
 @app.route("/")
 def index():
@@ -81,18 +98,81 @@ def api_save_outfit():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     """Render the login page."""
-    return render_template("login.html")
+    if request.method == "GET":
+        return render_template("login.html")
+    
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+
+    user = find_user_by_username(username)
+    if not user:
+        return render_template(
+            "login.html",
+            error="Invalid username or password.",
+        )
+    
+    if not check_password_hash(user["password_hash"], password):
+        return render_template(
+            "login.html",
+            error="Invalid username or password.",
+        )
+    
+    session["user_id"] = str(user["_id"])
+    session["username"] = user["username"]
+    update_last_login(user["_id"])
+
+    flash("Logged in successfully.", "success")
+    return redirect(url_for("analyze"))
 
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     """Render the signup page."""
-    return render_template("signup.html")
+    if request.method == "GET":
+        return render_template("signup.html")
+
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+    confirm_password = request.form.get("confirm_password", "")
+
+    #basic validation
+    if len(username) < 3:
+        return render_template(
+            "signup.html",
+            error="Username must be at least 3 characters long.",
+        )
+
+    if len(password) < 8:
+        return render_template(
+            "signup.html",
+            error="Password must be at least 8 characters long.",
+        )
+
+    if password != confirm_password:
+        return render_template(
+            "signup.html",
+            error="Passwords do not match.",
+        )
+
+    existing_user = find_user_by_username(username)
+    if existing_user:
+        return render_template(
+            "signup.html",
+            error="Username already exists.",
+        )
+
+    password_hash = generate_password_hash(password)
+    create_user(username, password_hash)
+
+    flash("Account created successfully. Please log in.", "success")
+    return redirect(url_for("login"))
 
 
 @app.route("/logout")
 def logout():
     """Redirect to the login page."""
+    session.clear()
+    flash("You have been logged out.", "success")
     return redirect(url_for("login"))
 
 
