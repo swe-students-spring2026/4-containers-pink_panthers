@@ -54,3 +54,11 @@ def insert_outfit(doc):
     """Insert one outfit document; return the new document's ObjectId."""
     doc["created_at"] = datetime.now()  # now db alwasys stores the time it's created.
     return outfits_collection.insert_one(doc).inserted_id
+
+def get_all_outfits():
+    """Return all outfit documents."""
+    return list(outfits_collection.find())
+
+def get_outfits_by_user(user_id):
+    """Return all outfits for a specific user."""
+    return list(outfits_collection.find({"user_id": user_id}))
