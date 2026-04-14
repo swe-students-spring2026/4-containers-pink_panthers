@@ -20,6 +20,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from db import (
     create_user,
     find_user_by_username,
+    get_quote_by_tier,
     init_db,
     insert_outfit,
     update_last_login,
@@ -31,6 +32,22 @@ app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 
 if os.environ.get("SKIP_DB_INIT", "1") != "1":
     init_db()
+
+
+def score_to_tier(score):
+    """Convert a numeric coordination score into a quote tier."""
+    if score >= 0.8:
+        return "high"
+    if score >= 0.5:
+        return "medium"
+    return "low"
+
+
+def require_login():
+    """Redirect to login page if the user is not authenticated."""
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    return None
 
 
 @app.errorhandler(RequestEntityTooLarge)
@@ -56,12 +73,17 @@ def _ctx():
 @app.route("/")
 def index():
     """Redirect home to the analyze page."""
-    return redirect(url_for("analyze"))
+    if session.get("user_id"):
+        return redirect(url_for("analyze"))
+    return redirect(url_for("login"))
 
 
 @app.route("/api/outfit", methods=["POST"])
 def api_save_outfit():
     """Accept JSON outfit payload and persist it to MongoDB."""
+    if not session.get("user_id"):
+        return jsonify({"ok": False, "error": "authentication_required"}), 401
+
     payload = request.get_json(silent=True) or {}
     top = (payload.get("top") or "").strip()
     bottom = (payload.get("bottom") or "").strip()
@@ -74,6 +96,12 @@ def api_save_outfit():
         return jsonify({"error": "top and bottom must be #RRGGBB hex"}), 400
 
     score = 0
+
+    tier = score_to_tier(score)
+
+    quote_doc = get_quote_by_tier(tier)
+    quote_text = quote_doc["text"] if quote_doc else None
+
     if not ts:
         ts = datetime.now(timezone.utc).isoformat()
 
@@ -81,6 +109,8 @@ def api_save_outfit():
         "top": top,
         "bottom": bottom,
         "coordination_score": score,
+        "tier": tier,
+        "quote": quote_text,
         "timestamp": ts,
         "photo": photo_b64,
         "photo_mime": "image/jpeg",
@@ -98,6 +128,8 @@ def api_save_outfit():
             "ok": True,
             "id": str(oid),
             "coordination_score": score,
+            "tier": tier,
+            "quote": quote_text,
             "top": top,
             "bottom": bottom,
             "timestamp": ts,
@@ -189,12 +221,19 @@ def logout():
 @app.route("/analyze")
 def analyze():
     """Render the webcam / outfit capture page."""
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
+
     return render_template("analyze.html")
 
 
 @app.route("/stats")
 def stats():
     """Render the stats page."""
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
     return render_template("stats.html")
 
 
