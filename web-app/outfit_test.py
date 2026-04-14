@@ -4,26 +4,26 @@ import os
 
 os.environ["MONGO_URI"] = "mongodb://127.0.0.1:27017/"
 
-import mongomock  
-import pymongo  
+import mongomock
+import pymongo
 
 pymongo.MongoClient = mongomock.MongoClient
 
-from unittest.mock import patch  
+from unittest.mock import patch
 
-import pytest  
-from bson import ObjectId  
-from pymongo.errors import PyMongoError  
+import pytest
+from bson import ObjectId
+from pymongo.errors import PyMongoError
 
-from app import app as fitcheck_app  
+from app import app as fitcheck_app
 
 
-@pytest.fixture
-def client():
+@pytest.fixture(name="client")
+def flask_client():
     """Flask test client with testing config."""
     fitcheck_app.config["TESTING"] = True
-    with fitcheck_app.test_client() as c:
-        yield c
+    with fitcheck_app.test_client() as client:
+        yield client
 
 
 def _valid_payload():
