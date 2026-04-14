@@ -22,3 +22,8 @@ def app():
         SECRET_KEY="test-secret",
     )
     return flask_app
+
+@pytest.fixture
+def client(app):
+    """Return a Flask test client."""
+    return app.test_client()
