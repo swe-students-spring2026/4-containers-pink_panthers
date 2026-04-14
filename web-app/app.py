@@ -194,21 +194,37 @@ def analyze():
 
 @app.route("/stats")
 def stats():
-    from db import get_all_outfits, get_outfits_by_user
+    """Render the stats page."""
+    from db import get_all_outfits, get_outfits_by_user  # noqa
 
     all_outfits = get_all_outfits()
     user_outfits = get_outfits_by_user(session.get("user_id"))
 
     total = len(all_outfits)
-    avg_score = round(sum(o.get("coordination_score", 0) for o in all_outfits) / total, 1) if total else 0
+    avg_score = (
+        round(
+            sum(o.get("coordination_score", 0) for o in all_outfits) / total, 1
+        )
+        if total
+        else 0
+    )
 
     user_total = len(user_outfits)
-    user_avg = round(sum(o.get("coordination_score", 0) for o in user_outfits) / user_total, 1) if user_total else 0
+    user_avg = (
+        round(
+            sum(o.get("coordination_score", 0) for o in user_outfits)
+            / user_total,
+            1,
+        )
+        if user_total
+        else 0
+    )
 
-    return render_template("stats.html",
+    return render_template(
+        "stats.html",
         avg_score=avg_score,
         user_avg=user_avg,
-        total_outfits=total
+        total_outfits=total,
     )
 
 if __name__ == "__main__":
