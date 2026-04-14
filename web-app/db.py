@@ -62,3 +62,4 @@ def get_all_outfits():
 def get_outfits_by_user(user_id):
     """Return all outfits for a specific user."""
     return list(outfits_collection.find({"user_id": user_id}))
+    

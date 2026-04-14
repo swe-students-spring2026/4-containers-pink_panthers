@@ -20,6 +20,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from db import (
     create_user,
     find_user_by_username,
+    get_all_outfits,
+    get_outfits_by_user,
     init_db,
     insert_outfit,
     update_last_login,
@@ -195,7 +197,6 @@ def analyze():
 @app.route("/stats")
 def stats():
     """Render the stats page."""
-    from db import get_all_outfits, get_outfits_by_user  # noqa
 
     all_outfits = get_all_outfits()
     user_outfits = get_outfits_by_user(session.get("user_id"))
