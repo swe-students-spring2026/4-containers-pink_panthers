@@ -26,10 +26,11 @@ from db import (
 )
 
 app = Flask(__name__)
-if os.environ.get("SKIP_DB_INIT") != "1":
-    init_db()
 app.secret_key = os.environ.get("SECRET_KEY", "dev")
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
+
+if os.environ.get("SKIP_DB_INIT") != "1":
+    init_db()
 
 
 @app.errorhandler(RequestEntityTooLarge)
@@ -66,6 +67,7 @@ def api_save_outfit():
     bottom = (payload.get("bottom") or "").strip()
     photo_b64 = payload.get("photo")
     ts = payload.get("timestamp")
+    
     if not top or not bottom or not photo_b64:
         return jsonify({"error": "top, bottom, and photo are required"}), 400
     if not top.startswith("#") or not bottom.startswith("#"):
