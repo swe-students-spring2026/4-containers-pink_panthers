@@ -53,27 +53,15 @@ def _ctx():
     }
 
 
-def require_login():
-    """Redirect to login page if the user is not authenticated."""
-    if not session.get("user_id"):
-        return redirect(url_for("login"))
-    return None
-
-
 @app.route("/")
 def index():
     """Redirect home to the analyze page."""
-    if session.get("user_id"):
-        return redirect(url_for("analyze"))
-    return redirect(url_for("login"))
+    return redirect(url_for("analyze"))
 
 
 @app.route("/api/outfit", methods=["POST"])
 def api_save_outfit():
     """Accept JSON outfit payload and persist it to MongoDB."""
-    if not session.get("user_id"):
-        return jsonify({"ok": False, "error": "authentication_required"}), 401
-
     payload = request.get_json(silent=True) or {}
     top = (payload.get("top") or "").strip()
     bottom = (payload.get("bottom") or "").strip()
@@ -201,20 +189,12 @@ def logout():
 @app.route("/analyze")
 def analyze():
     """Render the webcam / outfit capture page."""
-    auth_redirect = require_login()
-    if auth_redirect:
-        return auth_redirect
-
     return render_template("analyze.html")
 
 
 @app.route("/stats")
 def stats():
     """Render the stats page."""
-    auth_redirect = require_login()
-    if auth_redirect:
-        return auth_redirect
-
     return render_template("stats.html")
 
 

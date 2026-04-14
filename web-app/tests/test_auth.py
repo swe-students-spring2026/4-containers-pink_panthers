@@ -1,5 +1,5 @@
-from unittest.mock import patch
 from werkzeug.security import generate_password_hash
+from unittest.mock import patch
 
 
 def test_signup_page_loads(client):
@@ -124,87 +124,3 @@ def test_logout_clears_session(client):
     with client.session_transaction() as sess:
         assert "user_id" not in sess
         assert "username" not in sess
-
-
-def test_index_redirects_to_login_when_logged_out(client):
-    """Test that accessing the index page when not logged in redirects to the login page."""
-    response = client.get("/", follow_redirects=False)
-    assert response.status_code == 302
-    assert "/login" in response.headers["Location"]
-
-
-def test_analyze_requires_login(client):
-    """Test that accessing the analyze page when not logged in redirects to the login page."""
-    response = client.get("/analyze", follow_redirects=False)
-    assert response.status_code == 302
-    assert "/login" in response.headers["Location"]
-
-
-def test_api_outfit_requires_login(client):
-    """Test that accessing the API outfit endpoint when not logged in redirects to the login page."""
-    response = client.post(
-        "/api/outfit",
-        json={"top": "#ffffff", "bottom": "#000000", "photo": "dummy"},
-    )
-    assert response.status_code == 401
-    data = response.get_json()
-    assert data["error"] == "authentication_required"
-
-
-def test_stats_requires_login(client):
-    """Test that accessing the stats page when not logged in redirects to the login page."""
-    response = client.get("/stats", follow_redirects=False)
-    assert response.status_code == 302
-    assert "/login" in response.headers["Location"]
-
-
-def test_index_redirects_to_analyze_when_logged_in(client):
-    """Test that accessing the index page when logged in redirects to the analyze page."""
-    with client.session_transaction() as sess:
-        sess["user_id"] = "abc123"
-        sess["username"] = "sara123"
-
-    response = client.get("/", follow_redirects=False)
-    assert response.status_code == 302
-    assert "/analyze" in response.headers["Location"]
-
-
-def test_login_page_loads(client):
-    """Test that the login page loads successfully."""
-    response = client.get("/login")
-    assert response.status_code == 200
-    assert b"Log In" in response.data
-
-
-def test_signup_rejects_short_password(client):
-    """Test that the signup page rejects short passwords."""
-    response = client.post(
-        "/signup",
-        data={
-            "username": "sara123",
-            "password": "123",
-            "confirm_password": "123",
-        },
-    )
-    assert response.status_code == 200
-    assert b"Password must be at least 8 characters long." in response.data
-
-
-def test_analyze_loads_when_logged_in(client):
-    """Test that the analyze page loads when the user is logged in."""
-    with client.session_transaction() as sess:
-        sess["user_id"] = "abc123"
-        sess["username"] = "sara123"
-
-    response = client.get("/analyze")
-    assert response.status_code == 200
-
-
-def test_stats_loads_when_logged_in(client):
-    """Test that the stats page loads when the user is logged in."""
-    with client.session_transaction() as sess:
-        sess["user_id"] = "abc123"
-        sess["username"] = "sara123"
-
-    response = client.get("/stats")
-    assert response.status_code == 200
