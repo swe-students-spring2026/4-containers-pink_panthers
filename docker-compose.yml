@@ -4,9 +4,11 @@ services:
     ports:
       - "${WEB_PORT:-3000}:3000"
     environment:
-      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
+      # Fixed URI so host .env (e.g. 127.0.0.1 for local scripts) cannot break in-cluster DB.
+      MONGO_URI: mongodb://mongodb:27017/
       SECRET_KEY: ${SECRET_KEY:-dev}
       PORT: "${WEB_PORT:-3000}"
+      SKIP_DB_INIT: "0"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -15,7 +17,7 @@ services:
   ml:
     build: ./machine-learning-client
     environment:
-      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
+      MONGO_URI: mongodb://mongodb:27017/
       PORT: "${ML_PORT:-5001}"
       DB_NAME: ${DB_NAME:-outfit_db}
     depends_on:
@@ -28,7 +30,7 @@ services:
   seed:
     build: ./machine-learning-client
     environment:
-      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
+      MONGO_URI: mongodb://mongodb:27017/
       PORT: "${ML_PORT:-5001}"
       DB_NAME: ${DB_NAME:-outfit_db}
     depends_on:

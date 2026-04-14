@@ -8,10 +8,17 @@ import pymongo
 from bson import ObjectId
 from dotenv import load_dotenv  # pylint: disable=import-error
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+_app_dir = Path(__file__).resolve().parent
+_repo_dir = _app_dir.parent
+# Prefer web-app/.env, then repo root .env (do not override vars already set, e.g. by Docker).
+load_dotenv(_app_dir / ".env")
+load_dotenv(_repo_dir / ".env")
 
-client = pymongo.MongoClient(os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/"))
-db = client["outfit_db"]
+_mongo_uri = os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/")
+_db_name = os.environ.get("DB_NAME", "outfit_db")
+
+client = pymongo.MongoClient(_mongo_uri)
+db = client[_db_name]
 users_collection = db["users"]
 outfits_collection = db["outfits"]
 quotes_collection = db["quotes"]
