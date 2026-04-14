@@ -10,7 +10,7 @@ from dotenv import load_dotenv  # pylint: disable=import-error
 
 _app_dir = Path(__file__).resolve().parent
 _repo_dir = _app_dir.parent
-# Prefer web-app/.env, then repo root .env (do not override vars already set, e.g. by Docker).
+
 load_dotenv(_app_dir / ".env")
 load_dotenv(_repo_dir / ".env")
 
@@ -23,7 +23,6 @@ users_collection = db["users"]
 outfits_collection = db["outfits"]
 quotes_collection = db["quotes"]
 
-# Catalog rows (ids match outfit_db.quotes.csv export for stable outfit.quote_id refs).
 _DEFAULT_QUOTES = [
     {
         "_id": ObjectId("69de7f3fd029128a5b5a7b43"),
