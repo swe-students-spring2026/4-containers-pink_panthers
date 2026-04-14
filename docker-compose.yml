@@ -8,7 +8,8 @@ services:
       SECRET_KEY: ${SECRET_KEY:-dev}
       PORT: "${WEB_PORT:-3000}"
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     command: python app.py
 
   ml:
@@ -16,9 +17,24 @@ services:
     environment:
       MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
       PORT: "${ML_PORT:-5001}"
+      DB_NAME: ${DB_NAME:-outfit_db}
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
     command: python main.py
+
+  seed:
+    build: ./machine-learning-client
+    environment:
+      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
+      PORT: "${ML_PORT:-5001}"
+      DB_NAME: ${DB_NAME:-outfit_db}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    command: python seed.py
 
   mongodb:
     image: mongo:latest
@@ -26,3 +42,8 @@ services:
       - "${MONGO_HOST_PORT:-27017}:27017"
     volumes:
       - ./db:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
