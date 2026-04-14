@@ -101,6 +101,7 @@ def api_save_outfit():
 
     quote_doc = get_quote_by_tier(tier)
     quote_text = quote_doc["text"] if quote_doc else None
+    quote_id = str(quote_doc["_id"]) if quote_doc and quote_doc.get("_id") else None
 
     if not ts:
         ts = datetime.now(timezone.utc).isoformat()
@@ -111,6 +112,7 @@ def api_save_outfit():
         "coordination_score": score,
         "tier": tier,
         "quote": quote_text,
+        "quote_id": quote_id,
         "timestamp": ts,
         "photo": photo_b64,
         "photo_mime": "image/jpeg",
@@ -130,6 +132,7 @@ def api_save_outfit():
             "coordination_score": score,
             "tier": tier,
             "quote": quote_text,
+            "quote_id": quote_id,
             "top": top,
             "bottom": bottom,
             "timestamp": ts,

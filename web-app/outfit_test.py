@@ -52,8 +52,10 @@ def test_api_save_outfit_persists_json(mock_insert, mock_get_quote, client):
     _login(client)
 
     oid = ObjectId()
+    qid = ObjectId()
     mock_insert.return_value = oid
     mock_get_quote.return_value = {
+        "_id": qid,
         "tier": "high",
         "text": "Okayyyy fashion icon 💅 this combo is eating.",
         "is_active": True,
@@ -77,6 +79,12 @@ def test_api_save_outfit_persists_json(mock_insert, mock_get_quote, client):
     assert saved["photo"] == payload["photo"]
     assert saved["timestamp"] == payload["timestamp"]
     assert saved["photo_mime"] == "image/jpeg"
+    assert saved["tier"] == "low"
+    assert saved["coordination_score"] == 0
+    assert saved["quote"] == mock_get_quote.return_value["text"]
+    assert saved["quote_id"] == str(qid)
+    assert data["quote"] == mock_get_quote.return_value["text"]
+    assert data["quote_id"] == str(qid)
 
 
 @patch("app.insert_outfit")

@@ -23,10 +23,76 @@ users_collection = db["users"]
 outfits_collection = db["outfits"]
 quotes_collection = db["quotes"]
 
+# Catalog rows (ids match outfit_db.quotes.csv export for stable outfit.quote_id refs).
+_DEFAULT_QUOTES = [
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b43"),
+        "tier": "high",
+        "text": "Okayyyy fashion icon 💅 this combo is eating.",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b44"),
+        "tier": "high",
+        "text": "Color harmony level: main character energy.",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b45"),
+        "tier": "high",
+        "text": "This outfit? Approved by the fashion gods ✨",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b46"),
+        "tier": "medium",
+        "text": "Hmm… it's giving 'almost there'.",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b47"),
+        "tier": "medium",
+        "text": "Not bad, but your outfit is playing it a little safe.",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b48"),
+        "tier": "medium",
+        "text": "We see the vision… but it needs a bit more spice 🌶️",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b49"),
+        "tier": "low",
+        "text": "Respectfully… these colors are arguing 😭",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b4a"),
+        "tier": "low",
+        "text": "This combo said 'let's not coordinate today'.",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b4b"),
+        "tier": "low",
+        "text": "This combo is bold... maybe a little too bold.",
+        "is_active": True,
+    },
+]
+
+
+def _seed_quotes_if_empty():
+    """Insert starter catalog rows so outfits can store real quote text and ids."""
+    if quotes_collection.find_one() is not None:
+        return
+    quotes_collection.insert_many(_DEFAULT_QUOTES)
+
 
 def init_db():
     """Initialize database indexes."""
     users_collection.create_index("username", unique=True)
+    _seed_quotes_if_empty()
 
 
 def create_user(username, password_hash):

@@ -7,11 +7,28 @@ from bson import ObjectId
 import db
 
 
+@patch("db.quotes_collection")
 @patch("db.users_collection")
-def test_init_db_creates_username_index(mock_users_collection):
+def test_init_db_creates_username_index(mock_users_collection, mock_quotes_collection):
     """Test that init_db creates a unique index on the username field."""
+    mock_quotes_collection.find_one.return_value = {"_id": "exists"}
     db.init_db()
     mock_users_collection.create_index.assert_called_once_with("username", unique=True)
+    mock_quotes_collection.insert_many.assert_not_called()
+
+
+@patch("db.quotes_collection")
+@patch("db.users_collection")
+def test_init_db_seeds_quotes_when_catalog_empty(
+    mock_users_collection, mock_quotes_collection
+):
+    """Test that init_db inserts default quotes when the quotes collection is empty."""
+    mock_quotes_collection.find_one.return_value = None
+    db.init_db()
+    mock_quotes_collection.insert_many.assert_called_once()
+    batch = mock_quotes_collection.insert_many.call_args[0][0]
+    assert len(batch) == 9
+    assert {q["tier"] for q in batch} == {"low", "medium", "high"}
 
 
 @patch("db.users_collection")
