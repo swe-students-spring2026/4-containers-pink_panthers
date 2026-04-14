@@ -7,6 +7,7 @@ from datetime import datetime
 import pymongo
 from bson import ObjectId
 from dotenv import load_dotenv  # pylint: disable=import-error
+from pymongo.errors import PyMongoError
 
 _app_dir = Path(__file__).resolve().parent
 _repo_dir = _app_dir.parent
@@ -20,7 +21,6 @@ _db_name = os.environ.get("DB_NAME", "outfit_db")
 client = pymongo.MongoClient(_mongo_uri)
 db = client[_db_name]
 users_collection = db["users"]
-outfits_collection = db["outfits"]
 quotes_collection = db["quotes"]
 
 _DEFAULT_QUOTES = [
@@ -101,6 +101,7 @@ def create_user(username, password_hash):
         "password_hash": password_hash,
         "created_at": datetime.now(),
         "last_login_at": None,
+        "outfits": [],
     }
     return users_collection.insert_one(user).inserted_id
 
@@ -124,9 +125,24 @@ def update_last_login(user_id):
 
 
 def insert_outfit(doc):
-    """Insert one outfit document; return the new document's ObjectId."""
-    doc["created_at"] = datetime.now()  # Store database insertion time.
-    return outfits_collection.insert_one(doc).inserted_id
+    """Append one outfit to the user's outfits array; return the new subdocument _id."""
+    payload = dict(doc)
+    user_id = payload.pop("user_id", None)
+    if user_id is None:
+        raise PyMongoError("outfit document missing user_id")
+
+    outfit_id = ObjectId()
+    payload["_id"] = outfit_id
+    payload["created_at"] = datetime.now()
+
+    result = users_collection.update_one(
+        {"_id": user_id},
+        {"$push": {"outfits": payload}},
+    )
+    if result.matched_count == 0:
+        raise PyMongoError("user not found for outfit insert")
+
+    return outfit_id
 
 
 def get_quote_by_tier(tier):

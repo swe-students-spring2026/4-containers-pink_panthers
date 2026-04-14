@@ -13,6 +13,8 @@ from flask import (
     session,
     url_for,
 )
+from bson import ObjectId
+from bson.errors import InvalidId
 from pymongo.errors import PyMongoError
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -81,8 +83,13 @@ def index():
 @app.route("/api/outfit", methods=["POST"])
 def api_save_outfit():
     """Accept JSON outfit payload and persist it to MongoDB."""
-    if not session.get("user_id"):
+    raw_uid = session.get("user_id")
+    if not raw_uid:
         return jsonify({"ok": False, "error": "authentication_required"}), 401
+    try:
+        user_oid = ObjectId(raw_uid)
+    except InvalidId:
+        return jsonify({"ok": False, "error": "invalid_session"}), 401
 
     payload = request.get_json(silent=True) or {}
     top = (payload.get("top") or "").strip()
@@ -107,6 +114,7 @@ def api_save_outfit():
         ts = datetime.now(timezone.utc).isoformat()
 
     doc = {
+        "user_id": user_oid,
         "top": top,
         "bottom": bottom,
         "coordination_score": score,
@@ -129,6 +137,7 @@ def api_save_outfit():
         {
             "ok": True,
             "id": str(oid),
+            "user_id": str(user_oid),
             "coordination_score": score,
             "tier": tier,
             "quote": quote_text,

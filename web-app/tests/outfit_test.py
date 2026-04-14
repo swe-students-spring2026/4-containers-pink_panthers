@@ -29,10 +29,13 @@ def flask_client():
         yield client
 
 
+_TEST_USER_ID = "507f1f77bcf86cd799439011"
+
+
 def _login(client):
     """Set a fake logged-in session for protected routes."""
     with client.session_transaction() as sess:
-        sess["user_id"] = "test-user-id"
+        sess["user_id"] = _TEST_USER_ID
         sess["username"] = "sara123"
 
 
@@ -83,8 +86,10 @@ def test_api_save_outfit_persists_json(mock_insert, mock_get_quote, client):
     assert saved["coordination_score"] == 0
     assert saved["quote"] == mock_get_quote.return_value["text"]
     assert saved["quote_id"] == str(qid)
+    assert saved["user_id"] == ObjectId(_TEST_USER_ID)
     assert data["quote"] == mock_get_quote.return_value["text"]
     assert data["quote_id"] == str(qid)
+    assert data["user_id"] == _TEST_USER_ID
 
 
 @patch("app.insert_outfit")
