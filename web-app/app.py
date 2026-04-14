@@ -203,9 +203,7 @@ def stats():
 
     total = len(all_outfits)
     avg_score = (
-        round(
-            sum(o.get("coordination_score", 0) for o in all_outfits) / total, 1
-        )
+        round(sum(o.get("coordination_score", 0) for o in all_outfits) / total, 1)
         if total
         else 0
     )
@@ -213,8 +211,7 @@ def stats():
     user_total = len(user_outfits)
     user_avg = (
         round(
-            sum(o.get("coordination_score", 0) for o in user_outfits)
-            / user_total,
+            sum(o.get("coordination_score", 0) for o in user_outfits) / user_total,
             1,
         )
         if user_total
@@ -227,6 +224,7 @@ def stats():
         user_avg=user_avg,
         total_outfits=total,
     )
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "3000")), debug=True)
