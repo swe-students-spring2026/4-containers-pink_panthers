@@ -11,6 +11,7 @@ scikit-learn = "*"
 pymongo = "*"
 pytest = "*"
 pytest-cov = "*"
+python-dotenv = "*"
 
 [dev-packages]
 pytest = "*"

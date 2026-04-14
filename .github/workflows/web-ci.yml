@@ -1,0 +1,36 @@
+name: web-ci
+on: [push, pull_request]
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd web-app
+          python -m pip install --upgrade pip
+          python -m pip install pipenv
+          pipenv sync --dev --python $(which python)
+
+      - name: Lint
+        run: |
+          cd web-app
+          pipenv run pylint *.py
+
+      - name: Format Check
+        run: |
+          cd web-app
+          pipenv run black --check .
+
+      - name: Test
+        run: |
+          cd web-app
+          pipenv run pytest
