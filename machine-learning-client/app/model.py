@@ -13,19 +13,27 @@ import numpy as np
 from pymongo import MongoClient
 from sklearn.ensemble import RandomForestRegressor
 
+import os
+
 
 class OutfitModel:
 
     def __init__(self, training_collection=None, results_collection=None):
-        self.client = MongoClient("mongodb://localhost:27017/")
-        self.db = self.client["outfit_db"]
-
-        # fallback to real DB ONLY if not provided
-        self.training_collection = training_collection or self.db["training_data"]
-        self.results_collection = results_collection or self.db["results"]
-
         self.model = RandomForestRegressor(n_estimators=100, random_state=42)
         self.trained = False
+
+        if training_collection is None or results_collection is None:
+            mongo_uri = os.getenv("MONGO_URI")
+            db_name = os.getenv("DB_NAME", "outfit_db")
+
+            if not mongo_uri:
+                raise ValueError("MONGO_URI not set in environment")
+
+            self.client = MongoClient(mongo_uri)
+            self.db = self.client[db_name]
+
+        self.training_collection = training_collection or self.db["training_data"]
+        self.results_collection = results_collection or self.db["results"]
 
     def load_training_data(self) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -33,9 +41,9 @@ class OutfitModel:
 
         Expected format:
         {
-            "top_color": [R, G, B],
-            "bottom_color": [R, G, B],
-            "score": float (0.0 - 1.0)
+            "top_color": (#AAAAAA),
+            "bottom_color": (#AAAAAA),
+            "score": float 0 or 1
         }
         """
         data = list(self.training_collection.find())
@@ -47,11 +55,14 @@ class OutfitModel:
         y: List[float] = []
 
         for item in data:
-            top = item["top_color"]
-            bottom = item["bottom_color"]
+            top = item["color1"]
+            bottom = item["color2"]
             score = item["score"]
 
-            X.append(top + bottom)  # [R,G,B,R,G,B]
+            top_rgb = self.hex_to_rgb(top)
+            bottom_rgb = self.hex_to_rgb(bottom)
+
+            X.append(top_rgb + bottom_rgb)  # [R,G,B,R,G,B]
             y.append(score)
 
         return np.array(X), np.array(y)
@@ -91,27 +102,40 @@ class OutfitModel:
         bottom_color: Tuple[int, int, int],
         score: float,
     ) -> None:
-        """
-        Save result to MongoDB.
-        """
         self.results_collection.insert_one(
             {
-                "top_color": list(top_color),
-                "bottom_color": list(bottom_color),
-                "score": score,
+                "color1": self.rgb_to_hex(top_color),
+                "color2": self.rgb_to_hex(bottom_color),
+                "match": score,
             }
         )
 
-    def evaluate_outfit(
-        self,
-        top_color: Tuple[int, int, int],
-        bottom_color: Tuple[int, int, int],
-    ) -> float:
+    def evaluate_outfit(self, top_hex: str, bottom_hex: str) -> float:
         """
         Predict and store result.
         """
-        score = self.predict_score(top_color, bottom_color)
+        top_rgb = self.hex_to_rgb(top_hex)
+        bottom_rgb = self.hex_to_rgb(bottom_hex)
 
-        self.save_result(top_color, bottom_color, score)
+        score = self.predict_score(top_rgb, bottom_rgb)
+        self.save_result(top_rgb, bottom_rgb, score)
 
         return score
+
+    def hex_to_rgb(self, hex_color: str) -> List[int]:
+        """
+        Convert hex color (#AAAAAA) to [R, G, B]
+        """
+        hex_color = hex_color.lstrip("#")
+
+        return [
+            int(hex_color[0:2], 16),
+            int(hex_color[2:4], 16),
+            int(hex_color[4:6], 16),
+        ]
+
+    def rgb_to_hex(self, rgb: Tuple[int, int, int]) -> str:
+        """
+        Convert [R, G, B] → "#RRGGBB"
+        """
+        return "#{:02X}{:02X}{:02X}".format(*rgb)
