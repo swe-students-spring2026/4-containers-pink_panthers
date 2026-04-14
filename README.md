@@ -27,8 +27,7 @@ cp machine-learning-client/.env.example machine-learning-client/.env
 docker-compose up --build -d
 ```
 ### 4. Open web browser
-Click [here](http://localhost:3000) 
-Or open your browser and navigate to:
+Click [here](http://localhost:3000) or open your browser and navigate to:
 ```text
 http://localhost:3000
 ```
