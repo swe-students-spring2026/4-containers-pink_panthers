@@ -1,16 +1,117 @@
 """
-Seed script for inserting data into database
+Seed script for inserting testing data into database based on general fashion rules
 """
 
+import os
+import random
+import colorsys
 from pymongo import MongoClient
+from dotenv import load_dotenv
 
-client = MongoClient("mongodb://localhost:27017/")
-db = client["outfit_db"]
+# -----------------------------
+# Load environment variables
+# -----------------------------
+load_dotenv()
 
-data = [
-    {"top_color": [255, 0, 0], "bottom_color": [0, 0, 0], "score": 0.9},
-    {"top_color": [255, 0, 0], "bottom_color": [0, 255, 0], "score": 0.1},
-    {"top_color": [0, 0, 255], "bottom_color": [255, 255, 255], "score": 0.8},
+MONGO_URI = os.getenv("MONGO_URI")
+DB_NAME = os.getenv("DB_NAME")
+COLLECTION_NAME = "training_data"
+
+# -----------------------------
+# MongoDB Connection
+# -----------------------------
+client = MongoClient(MONGO_URI)
+db = client[DB_NAME]
+collection = db[COLLECTION_NAME]
+
+
+# -----------------------------
+# Helpers
+# -----------------------------
+def rgb_to_hex(rgb):
+    return "#{:02X}{:02X}{:02X}".format(*rgb)
+
+
+def random_color():
+    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+
+def get_hsv(rgb):
+    r, g, b = [x / 255.0 for x in rgb]
+    return colorsys.rgb_to_hsv(r, g, b)
+
+
+def hue_distance(h1, h2):
+    diff = abs(h1 - h2)
+    return min(diff, 1 - diff)
+
+
+# -----------------------------
+# Neutral palette
+# -----------------------------
+NEUTRALS = [
+    (0, 0, 0),  # black
+    (255, 255, 255),  # white
+    (128, 128, 128),  # gray
+    (245, 245, 220),  # beige
 ]
 
-db.training_data.insert_many(data)
+
+# -----------------------------
+# Matching logic
+# -----------------------------
+def is_good_match(c1, c2):
+    h1, s1, v1 = get_hsv(c1)
+    h2, s2, v2 = get_hsv(c2)
+
+    # neutrals always match
+    if c1 in NEUTRALS or c2 in NEUTRALS:
+        return True
+
+    # complementary colors
+    if hue_distance(h1, h2) > 0.45:
+        return True
+
+    # same hue, different brightness
+    if hue_distance(h1, h2) < 0.15 and abs(v1 - v2) > 0.25:
+        return True
+
+    return False
+
+
+# -----------------------------
+# Generate dataset
+# -----------------------------
+def generate_pairs(n=2000):
+    data = []
+
+    for _ in range(n):
+        c1 = random_color()
+        c2 = random_color()
+
+        score = 1 if is_good_match(c1, c2) else 0
+
+        data.append(
+            {"color1": rgb_to_hex(c1), "color2": rgb_to_hex(c2), "score": score}
+        )
+
+    return data
+
+
+# -----------------------------
+# Insert into MongoDB
+# -----------------------------
+def insert_data(data):
+    if not data:
+        return
+
+    collection.insert_many(data)
+    print(f"Inserted {len(data)} records into {DB_NAME}.training_data")
+
+
+# -----------------------------
+# Run
+# -----------------------------
+if __name__ == "__main__":
+    data = generate_pairs()
+    insert_data(data)
