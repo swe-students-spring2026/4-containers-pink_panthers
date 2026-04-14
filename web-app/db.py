@@ -8,14 +8,17 @@ import pymongo
 from bson import ObjectId
 from dotenv import load_dotenv  # pylint: disable=import-error
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 client = pymongo.MongoClient(os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/"))
 db = client["outfit_db"]
 users_collection = db["users"]
 outfits_collection = db["outfits"]
 
-users_collection.create_index("username", unique=True)
+
+def init_db():
+    """Initialize database indexes."""
+    users_collection.create_index("username", unique=True)
 
 
 def create_user(username, password_hash):
@@ -42,7 +45,8 @@ def find_user_by_id(user_id):
 def update_last_login(user_id):
     """Update the last login timestamp for a user."""
     users_collection.update_one(
-        {"_id": ObjectId(user_id)}, {"$set": {"last_login_at": datetime.now()}}
+        {"_id": ObjectId(user_id)},
+        {"$set": {"last_login_at": datetime.now()}},
     )
 
 
