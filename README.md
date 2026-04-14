@@ -1,5 +1,6 @@
 ![Lint-free](https://github.com/nyu-software-engineering/containerized-app-exercise/actions/workflows/lint.yml/badge.svg)
-# Add badges for testing
+[![Web App CI](https://github.com/swe-students-spring2026/4-containers-pink_panthers/actions/workflows/web-ci.yml/badge.svg)](https://github.com/swe-students-spring2026/4-containers-pink_panthers/actions/workflows/web-ci.yml)
+[![ML Client CI](https://github.com/swe-students-spring2026/4-containers-pink_panthers/actions/workflows/ml-ci.yml/badge.svg)](https://github.com/swe-students-spring2026/4-containers-pink_panthers/actions/workflows/ml-ci.yml)
 
 # FitCheck 
 Our web app helps users analyze if the outfit they are wearing has good color coordination. 
