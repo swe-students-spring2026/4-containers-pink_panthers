@@ -7,14 +7,14 @@ Example script for OutfitModel
 - Saves result to MongoDB results collection
 """
 
+from app.model import OutfitModel
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.model import OutfitModel
-
 
 def main():
+    """Test model with example color pair."""
 
     top_color = "#1325C8"
     bottom_color = "#000000"

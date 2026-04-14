@@ -29,19 +29,27 @@ collection = db[COLLECTION_NAME]
 # Helpers
 # -----------------------------
 def rgb_to_hex(rgb):
+    """Convert RGB tuple to HEX string."""
     return "#{:02X}{:02X}{:02X}".format(*rgb)
 
 
 def random_color():
-    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+    """Generate a random RGB color."""
+    return (
+        random.randint(0, 255),
+        random.randint(0, 255),
+        random.randint(0, 255),
+    )
 
 
 def get_hsv(rgb):
+    """Convert RGB to HSV color space."""
     r, g, b = [x / 255.0 for x in rgb]
     return colorsys.rgb_to_hsv(r, g, b)
 
 
 def hue_distance(h1, h2):
+    """Calculate circular distance between two hues."""
     diff = abs(h1 - h2)
     return min(diff, 1 - diff)
 
@@ -50,10 +58,10 @@ def hue_distance(h1, h2):
 # Neutral palette
 # -----------------------------
 NEUTRALS = [
-    (0, 0, 0),  # black
-    (255, 255, 255),  # white
-    (128, 128, 128),  # gray
-    (245, 245, 220),  # beige
+    (0, 0, 0),
+    (255, 255, 255),
+    (128, 128, 128),
+    (245, 245, 220),
 ]
 
 
@@ -61,18 +69,16 @@ NEUTRALS = [
 # Matching logic
 # -----------------------------
 def is_good_match(c1, c2):
+    """Determine if two colors match based on heuristic rules."""
     h1, s1, v1 = get_hsv(c1)
     h2, s2, v2 = get_hsv(c2)
 
-    # neutrals always match
     if c1 in NEUTRALS or c2 in NEUTRALS:
         return True
 
-    # complementary colors
     if hue_distance(h1, h2) > 0.45:
         return True
 
-    # same hue, different brightness
     if hue_distance(h1, h2) < 0.15 and abs(v1 - v2) > 0.25:
         return True
 
@@ -83,6 +89,7 @@ def is_good_match(c1, c2):
 # Generate dataset
 # -----------------------------
 def generate_pairs(n=2000):
+    """Generate labeled outfit color pairs."""
     data = []
 
     for _ in range(n):
@@ -92,7 +99,11 @@ def generate_pairs(n=2000):
         score = 1 if is_good_match(c1, c2) else 0
 
         data.append(
-            {"color1": rgb_to_hex(c1), "color2": rgb_to_hex(c2), "score": score}
+            {
+                "color1": rgb_to_hex(c1),
+                "color2": rgb_to_hex(c2),
+                "score": score,
+            }
         )
 
     return data
@@ -102,6 +113,7 @@ def generate_pairs(n=2000):
 # Insert into MongoDB
 # -----------------------------
 def insert_data(data):
+    """Insert generated data into MongoDB."""
     if not data:
         return
 
