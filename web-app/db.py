@@ -57,5 +57,3 @@ def insert_outfit(doc):
     doc["created_at"] = datetime.now()  # now db alwasys stores the time it's created.
     return outfits_collection.insert_one(doc).inserted_id
 
-
-print(client.admin.command("ping"))
