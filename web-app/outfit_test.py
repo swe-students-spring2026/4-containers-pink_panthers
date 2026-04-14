@@ -49,7 +49,7 @@ def _valid_payload():
 def test_api_save_outfit_persists_json(mock_insert, client):
     """POST /api/outfit saves the webcam JSON payload and returns ok + id."""
     _login(client)
-    
+
     oid = ObjectId()
     mock_insert.return_value = oid
     payload = _valid_payload()

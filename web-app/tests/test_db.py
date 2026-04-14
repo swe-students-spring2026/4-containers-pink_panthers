@@ -44,9 +44,7 @@ def test_find_user_by_id_calls_find_one_with_objectid(mock_users_collection):
 
     db.find_user_by_id(user_id)
 
-    mock_users_collection.find_one.assert_called_once_with(
-        {"_id": ObjectId(user_id)}
-    )
+    mock_users_collection.find_one.assert_called_once_with({"_id": ObjectId(user_id)})
 
 
 @patch("db.users_collection")
