@@ -52,5 +52,5 @@ def update_last_login(user_id):
 
 def insert_outfit(doc):
     """Insert one outfit document; return the new document's ObjectId."""
-    doc["created_at"] = datetime.now()  # now db alwasys stores the time it's created.
+    doc["created_at"] = datetime.now()  # Now db alwasys stores the time it's created.
     return outfits_collection.insert_one(doc).inserted_id
