@@ -30,7 +30,8 @@ collection = db[COLLECTION_NAME]
 # -----------------------------
 def rgb_to_hex(rgb):
     """Convert RGB tuple to HEX string."""
-    return "#{:02X}{:02X}{:02X}".format(*rgb)
+    r, g, b = rgb
+    return f"#{r:02X}{g:02X}{b:02X}"
 
 
 def random_color():
@@ -70,8 +71,8 @@ NEUTRALS = [
 # -----------------------------
 def is_good_match(c1, c2):
     """Determine if two colors match based on heuristic rules."""
-    h1, s1, v1 = get_hsv(c1)
-    h2, s2, v2 = get_hsv(c2)
+    h1, _, v1 = get_hsv(c1)
+    h2, _, v2 = get_hsv(c2)
 
     if c1 in NEUTRALS or c2 in NEUTRALS:
         return True
@@ -90,7 +91,7 @@ def is_good_match(c1, c2):
 # -----------------------------
 def generate_pairs(n=2000):
     """Generate labeled outfit color pairs."""
-    data = []
+    pairs = []
 
     for _ in range(n):
         c1 = random_color()
@@ -98,7 +99,7 @@ def generate_pairs(n=2000):
 
         score = 1 if is_good_match(c1, c2) else 0
 
-        data.append(
+        pairs.append(
             {
                 "color1": rgb_to_hex(c1),
                 "color2": rgb_to_hex(c2),
@@ -106,7 +107,7 @@ def generate_pairs(n=2000):
             }
         )
 
-    return data
+    return pairs
 
 
 # -----------------------------
@@ -125,5 +126,5 @@ def insert_data(data):
 # Run
 # -----------------------------
 if __name__ == "__main__":
-    data = generate_pairs()
-    insert_data(data)
+    output = generate_pairs()
+    insert_data(output)

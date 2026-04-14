@@ -41,7 +41,7 @@ def test_load_training_data():
 
     # mock collection directly
     model.training_collection.insert_one(
-        {"color1": [255, 0, 0], "color2": [0, 0, 0], "score": 1.0}
+        {"color1": "FF0000", "color2": "000000", "score": 1.0}
     )
 
     X, y = model.load_training_data()
@@ -75,7 +75,7 @@ def test_train_runs():
     )
 
     model.training_collection.insert_one(
-        {"top_color": [255, 0, 0], "bottom_color": [0, 0, 0], "score": 1.0}
+        {"color1": "FF0000", "color2": "000000", "score": 1.0}
     )
 
     model.train()

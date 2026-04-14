@@ -7,8 +7,8 @@ Example script for OutfitModel
 - Saves result to MongoDB results collection
 """
 
-from app.model import OutfitModel
 from dotenv import load_dotenv
+from app.model import OutfitModel
 
 load_dotenv()
 
