@@ -3,6 +3,7 @@
 import os
 from datetime import datetime, timezone
 
+
 from flask import (
     Flask,
     flash,
@@ -20,6 +21,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from db import (
     create_user,
     find_user_by_username,
+    get_quote_by_tier,
     init_db,
     insert_outfit,
     update_last_login,
@@ -53,6 +55,15 @@ def _ctx():
     }
 
 
+def score_to_tier(score):
+    """Convert a numeric coordination score into a quote tier."""
+    if score >= 0.8:
+        return "high"
+    if score >= 0.5:
+        return "medium"
+    return "low"
+
+
 @app.route("/")
 def index():
     """Redirect home to the analyze page."""
@@ -73,7 +84,13 @@ def api_save_outfit():
     if not top.startswith("#") or not bottom.startswith("#"):
         return jsonify({"error": "top and bottom must be #RRGGBB hex"}), 400
 
-    score = 0
+    score = 0.82
+
+    tier = score_to_tier(score)
+
+    quote_doc = get_quote_by_tier(tier)
+    quote_text = quote_doc["text"] if quote_doc else None
+
     if not ts:
         ts = datetime.now(timezone.utc).isoformat()
 
@@ -81,6 +98,8 @@ def api_save_outfit():
         "top": top,
         "bottom": bottom,
         "coordination_score": score,
+        "tier": tier,
+        "quote": quote_text,
         "timestamp": ts,
         "photo": photo_b64,
         "photo_mime": "image/jpeg",
@@ -98,6 +117,8 @@ def api_save_outfit():
             "ok": True,
             "id": str(oid),
             "coordination_score": score,
+            "tier": tier,
+            "quote": quote_text,
             "top": top,
             "bottom": bottom,
             "timestamp": ts,
