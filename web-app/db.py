@@ -10,9 +10,7 @@ from dotenv import load_dotenv  # pylint: disable=import-error
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-client = pymongo.MongoClient(
-    os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/")
-)
+client = pymongo.MongoClient(os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/"))
 db = client["outfit_db"]
 users_collection = db["users"]
 outfits_collection = db["outfits"]
@@ -56,4 +54,3 @@ def insert_outfit(doc):
     """Insert one outfit document; return the new document's ObjectId."""
     doc["created_at"] = datetime.now()  # now db alwasys stores the time it's created.
     return outfits_collection.insert_one(doc).inserted_id
-
