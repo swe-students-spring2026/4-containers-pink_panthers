@@ -14,6 +14,7 @@ client = pymongo.MongoClient(os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27
 db = client["outfit_db"]
 users_collection = db["users"]
 outfits_collection = db["outfits"]
+quotes_collection = db["quotes"]
 
 
 def init_db():
@@ -52,5 +53,18 @@ def update_last_login(user_id):
 
 def insert_outfit(doc):
     """Insert one outfit document; return the new document's ObjectId."""
-    doc["created_at"] = datetime.now()  # Now db alwasys stores the time it's created.
+    doc["created_at"] = datetime.now()  # Store database insertion time.
     return outfits_collection.insert_one(doc).inserted_id
+
+
+def get_quote_by_tier(tier):
+    """Return one random active quote for the given tier."""
+    results = list(
+        quotes_collection.aggregate(
+            [
+                {"$match": {"tier": tier, "is_active": True}},
+                {"$sample": {"size": 1}},
+            ]
+        )
+    )
+    return results[0] if results else None

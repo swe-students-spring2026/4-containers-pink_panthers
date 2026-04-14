@@ -29,6 +29,13 @@ def flask_client():
         yield client
 
 
+def _login(client):
+    """Set a fake logged-in session for protected routes."""
+    with client.session_transaction() as sess:
+        sess["user_id"] = "test-user-id"
+        sess["username"] = "sara123"
+
+
 def _valid_payload():
     return {
         "top": "#ff0000",
@@ -41,6 +48,8 @@ def _valid_payload():
 @patch("app.insert_outfit")
 def test_api_save_outfit_persists_json(mock_insert, client):
     """POST /api/outfit saves the webcam JSON payload and returns ok + id."""
+    _login(client)
+    
     oid = ObjectId()
     mock_insert.return_value = oid
     payload = _valid_payload()
@@ -67,6 +76,8 @@ def test_api_save_outfit_persists_json(mock_insert, client):
 @patch("app.insert_outfit")
 def test_api_save_outfit_missing_photo_rejected(mock_insert, client):
     """Missing photo (webcam capture) yields 400 and no DB write."""
+    _login(client)
+
     rv = client.post(
         "/api/outfit",
         json={"top": "#111111", "bottom": "#222222"},
@@ -79,6 +90,8 @@ def test_api_save_outfit_missing_photo_rejected(mock_insert, client):
 @patch("app.insert_outfit")
 def test_api_save_outfit_invalid_hex_rejected(mock_insert, client):
     """Non-hex color strings yield 400."""
+    _login(client)
+
     payload = _valid_payload()
     payload["top"] = "red"
     rv = client.post("/api/outfit", json=payload)
@@ -89,6 +102,8 @@ def test_api_save_outfit_invalid_hex_rejected(mock_insert, client):
 @patch("app.insert_outfit")
 def test_api_save_outfit_database_error(mock_insert, client):
     """Mongo errors surface as 503 with ok False."""
+    _login(client)
+
     mock_insert.side_effect = PyMongoError("connection refused")
     rv = client.post("/api/outfit", json=_valid_payload())
     assert rv.status_code == 503
