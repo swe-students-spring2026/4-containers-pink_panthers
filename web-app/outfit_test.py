@@ -5,6 +5,7 @@
 import os
 
 os.environ["MONGO_URI"] = "mongodb://127.0.0.1:27017/"
+os.environ["SKIP_DB_INIT"] = "1"
 
 import mongomock
 import pymongo
