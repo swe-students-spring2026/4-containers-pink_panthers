@@ -1,16 +1,24 @@
 """Tests for POST /api/outfit (webcam JSON save)."""
 
+# pylint: disable=wrong-import-position,wrong-import-order
+
 import os
-from unittest.mock import patch
+
+os.environ["MONGO_URI"] = "mongodb://127.0.0.1:27017/"
+
 import mongomock
 import pymongo
+
+pymongo.MongoClient = mongomock.MongoClient
+
+from unittest.mock import patch
+
 import pytest
 from bson import ObjectId
 from pymongo.errors import PyMongoError
+
 from app import app as fitcheck_app
 
-os.environ["MONGO_URI"] = "mongodb://127.0.0.1:27017/"
-pymongo.MongoClient = mongomock.MongoClient
 
 @pytest.fixture(name="client")
 def flask_client():
