@@ -2,13 +2,11 @@ from werkzeug.security import generate_password_hash
 from unittest.mock import patch
 
 
-
 def test_signup_page_loads(client):
     """Test that the signup page loads successfully."""
     response = client.get("/signup")
     assert response.status_code == 200
     assert b"Sign Up" in response.data
-
 
 
 def test_signup_rejects_mismatched_passwords(client):
@@ -23,7 +21,6 @@ def test_signup_rejects_mismatched_passwords(client):
     )
     assert response.status_code == 200
     assert b"Passwords do not match." in response.data
-
 
 
 def test_signup_success_redirects_to_login(client):
@@ -46,7 +43,6 @@ def test_signup_success_redirects_to_login(client):
         mock_create_user.assert_called_once()
 
 
-
 def test_signup_rejects_existing_user(client):
     """Test that signup fails when the username already exists."""
     with patch("app.find_user_by_username", return_value={"username": "sara"}):
@@ -61,7 +57,6 @@ def test_signup_rejects_existing_user(client):
 
         assert response.status_code == 200
         assert b"Username already exists" in response.data
-
 
 
 def test_login_rejects_wrong_password(client):
@@ -83,7 +78,6 @@ def test_login_rejects_wrong_password(client):
 
         assert response.status_code == 200
         assert b"Invalid username or password." in response.data
-
 
 
 def test_login_success_sets_session(client):
@@ -114,7 +108,6 @@ def test_login_success_sets_session(client):
             assert sess["username"] == "sara123"
 
         mock_update_last_login.assert_called_once()
-
 
 
 def test_logout_clears_session(client):
