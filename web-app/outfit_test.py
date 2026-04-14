@@ -1,9 +1,9 @@
 """Tests for POST /api/outfit (webcam JSON save)."""
 
 import os
+from unittest.mock import patch
 import mongomock
 import pymongo
-from unittest.mock import patch
 import pytest
 from bson import ObjectId
 from pymongo.errors import PyMongoError
