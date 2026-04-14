@@ -45,13 +45,19 @@ def _valid_payload():
     }
 
 
+@patch("app.get_quote_by_tier")
 @patch("app.insert_outfit")
-def test_api_save_outfit_persists_json(mock_insert, client):
+def test_api_save_outfit_persists_json(mock_insert, mock_get_quote, client):
     """POST /api/outfit saves the webcam JSON payload and returns ok + id."""
     _login(client)
 
     oid = ObjectId()
     mock_insert.return_value = oid
+    mock_get_quote.return_value = {
+        "tier": "high",
+        "text": "Okayyyy fashion icon 💅 this combo is eating.",
+        "is_active": True,
+    }
     payload = _valid_payload()
 
     rv = client.post("/api/outfit", json=payload)
@@ -99,11 +105,17 @@ def test_api_save_outfit_invalid_hex_rejected(mock_insert, client):
     mock_insert.assert_not_called()
 
 
+@patch("app.get_quote_by_tier")
 @patch("app.insert_outfit")
-def test_api_save_outfit_database_error(mock_insert, client):
+def test_api_save_outfit_database_error(mock_insert, mock_get_quote, client):
     """Mongo errors surface as 503 with ok False."""
     _login(client)
 
+    mock_get_quote.return_value = {
+        "tier": "high",
+        "text": "Okayyyy fashion icon 💅 this combo is eating.",
+        "is_active": True,
+    }
     mock_insert.side_effect = PyMongoError("connection refused")
     rv = client.post("/api/outfit", json=_valid_payload())
     assert rv.status_code == 503
