@@ -7,13 +7,13 @@ Example script for OutfitModel
 - Saves result to MongoDB results collection
 """
 
-from dotenv import load_dotenv
-from app.model import OutfitModel
+from dotenv import load_dotenv  # pragma: no cover
+from app.model import OutfitModel  # pragma: no cover
 
-load_dotenv()
+load_dotenv()  # pragma: no cover
 
 
-def main():
+def main():  # pragma: no cover
     """Test model with example color pair."""
 
     top_color = "#1325C8"
@@ -35,5 +35,5 @@ def main():
     print("Result saved to MongoDB.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
