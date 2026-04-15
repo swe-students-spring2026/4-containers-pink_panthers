@@ -292,7 +292,9 @@ def outfits():
     for outfit in reversed(get_outfits_by_user(session.get("user_id"))):
         row = dict(outfit)
         row["id_str"] = str(outfit.get("_id")) if outfit.get("_id") else ""
-        row["display_score"] = round(float(outfit.get("coordination_score", 0)) * 100, 1)
+        row["display_score"] = round(
+            float(outfit.get("coordination_score", 0)) * 100, 1
+        )
         rows.append(row)
 
     return render_template("outfits.html", outfits=rows)
@@ -324,7 +326,8 @@ def stats():
     total = len(all_outfits)
     avg_score = (
         round(
-            sum(float(o.get("coordination_score", 0)) * 100 for o in all_outfits) / total,
+            sum(float(o.get("coordination_score", 0)) * 100 for o in all_outfits)
+            / total,
             1,
         )
         if total
