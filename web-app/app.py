@@ -260,11 +260,6 @@ def stats():
         user_avg=user_avg,
         total_outfits=total,
     )
-    auth_redirect = require_login()
-    if auth_redirect:
-        return auth_redirect
-    return render_template("stats.html")
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "3000")), debug=True)
