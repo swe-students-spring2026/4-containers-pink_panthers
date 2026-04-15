@@ -1,6 +1,9 @@
 """FitCheck Flask application."""
 
+import json
 import os
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 
 from flask import (
@@ -43,6 +46,30 @@ def score_to_tier(score):
     if score >= 0.5:
         return "medium"
     return "low"
+
+
+def fetch_coordination_score(top_hex: str, bottom_hex: str) -> float:
+    base = (os.environ.get("ML_BASE_URL") or "").strip().rstrip("/")
+    if not base:
+        return 0.0
+    url = f"{base.rstrip('/')}/predict"
+    body = json.dumps({"top": top_hex, "bottom": bottom_hex}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(exc.read().decode("utf-8", errors="replace")) from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(str(exc.reason)) from exc
+    if not payload.get("ok"):
+        raise RuntimeError(str(payload.get("error", "ml_error")))
+    return float(payload["score"])
 
 
 def require_login():
@@ -102,7 +129,13 @@ def api_save_outfit():
     if not top.startswith("#") or not bottom.startswith("#"):
         return jsonify({"error": "top and bottom must be #RRGGBB hex"}), 400
 
-    score = 0
+    try:
+        score = fetch_coordination_score(top, bottom)
+    except RuntimeError as exc:
+        return (
+            jsonify({"ok": False, "error": "scoring_failed", "detail": str(exc)}),
+            503,
+        )
 
     tier = score_to_tier(score)
 

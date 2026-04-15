@@ -1,21 +1,33 @@
+networks:
+  fitcheck:
+    driver: bridge
+
 services:
   web:
     build: ./web-app
+    networks:
+      - fitcheck
     ports:
       - "${WEB_PORT:-3000}:3000"
     environment:
-      # Fixed URI so host .env (e.g. 127.0.0.1 for local scripts) cannot break in-cluster DB.
       MONGO_URI: mongodb://mongodb:27017/
       SECRET_KEY: ${SECRET_KEY:-dev}
       PORT: "${WEB_PORT:-3000}"
       SKIP_DB_INIT: "0"
+      ML_BASE_URL: http://ml:5001
     depends_on:
       mongodb:
         condition: service_healthy
+      ml:
+        condition: service_started
     command: python app.py
 
   ml:
     build: ./machine-learning-client
+    networks:
+      - fitcheck
+    ports:
+      - "${ML_PORT:-5001}:5001"
     environment:
       MONGO_URI: mongodb://mongodb:27017/
       PORT: "${ML_PORT:-5001}"
@@ -29,6 +41,8 @@ services:
 
   seed:
     build: ./machine-learning-client
+    networks:
+      - fitcheck
     environment:
       MONGO_URI: mongodb://mongodb:27017/
       PORT: "${ML_PORT:-5001}"
@@ -40,6 +54,8 @@ services:
 
   mongodb:
     image: mongo:latest
+    networks:
+      - fitcheck
     ports:
       - "${MONGO_HOST_PORT:-27017}:27017"
     volumes:

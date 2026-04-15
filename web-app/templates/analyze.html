@@ -148,6 +148,14 @@
         return top && bot ? { top: top, bot: bot } : null;
     }
 
+    function escHtml(s) {
+        return String(s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
     function swatch(hex) {
         return (
             '<span style="display:inline-block;width:16px;height:16px;border-radius:3px;vertical-align:middle;margin:0 6px 0 0;border:1px solid rgba(0,0,0,0.12);background:' +
@@ -238,11 +246,17 @@
                     .then(function (res) {
                         var d = res.data;
                         if (res.httpOk && d.ok) {
-                            capMeta.innerHTML =
-                                baseMeta +
+                            var pct = Math.round(Number(d.coordination_score) * 100);
+                            var coordLine =
                                 "<br><strong>Coordination</strong> " +
-                                d.coordination_score +
+                                pct +
                                 "/100 · <span style='color:#4a7c59'>saved</span>";
+                            var quoteLine = d.quote
+                                ? "<br><span style='display:block;margin-top:0.5rem;font-style:italic;color:#444;line-height:1.4'>" +
+                                  escHtml(d.quote) +
+                                  "</span>"
+                                : "";
+                            capMeta.innerHTML = baseMeta + coordLine + quoteLine;
                             return;
                         }
                         var msg =
