@@ -39,7 +39,12 @@ def predict():
     data = request.get_json(silent=True) or {}
     top = (data.get("top") or "").strip()
     bottom = (data.get("bottom") or "").strip()
-    if len(top) != 7 or len(bottom) != 7 or not top.startswith("#") or not bottom.startswith("#"):
+    if (
+        len(top) != 7
+        or len(bottom) != 7
+        or not top.startswith("#")
+        or not bottom.startswith("#")
+    ):
         return jsonify({"ok": False, "error": "invalid_colors"}), 400
     try:
         model = get_model()
