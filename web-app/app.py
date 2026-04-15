@@ -49,6 +49,7 @@ def score_to_tier(score):
 
 
 def fetch_coordination_score(top_hex: str, bottom_hex: str) -> float:
+    """Return ML coordination score for two hex colors, or 0.0 when ML_BASE_URL is unset."""
     base = (os.environ.get("ML_BASE_URL") or "").strip().rstrip("/")
     if not base:
         return 0.0
@@ -124,10 +125,13 @@ def api_save_outfit():
     photo_b64 = payload.get("photo")
     ts = payload.get("timestamp")
 
+    bad_req = None
     if not top or not bottom or not photo_b64:
-        return jsonify({"error": "top, bottom, and photo are required"}), 400
-    if not top.startswith("#") or not bottom.startswith("#"):
-        return jsonify({"error": "top and bottom must be #RRGGBB hex"}), 400
+        bad_req = "top, bottom, and photo are required"
+    elif not top.startswith("#") or not bottom.startswith("#"):
+        bad_req = "top and bottom must be #RRGGBB hex"
+    if bad_req:
+        return jsonify({"error": bad_req}), 400
 
     try:
         score = fetch_coordination_score(top, bottom)
