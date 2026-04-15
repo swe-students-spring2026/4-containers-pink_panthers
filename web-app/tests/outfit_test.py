@@ -135,3 +135,21 @@ def test_api_save_outfit_database_error(mock_insert, mock_get_quote, client):
     data = rv.get_json()
     assert data["ok"] is False
     assert data["error"] == "database_error"
+
+
+def test_delete_outfit_requires_login(client):
+    """Delete endpoint should require login."""
+    rv = client.post(f"/outfits/{ObjectId()}/delete", follow_redirects=False)
+    assert rv.status_code == 302
+    assert "/login" in rv.headers["Location"]
+
+
+@patch("app.delete_outfit_for_user", return_value=True)
+def test_delete_outfit_success(mock_delete, client):
+    """Delete endpoint calls helper and redirects."""
+    _login(client)
+    oid = str(ObjectId())
+    rv = client.post(f"/outfits/{oid}/delete", follow_redirects=False)
+    assert rv.status_code == 302
+    assert "/outfits" in rv.headers["Location"]
+    mock_delete.assert_called_once_with(_TEST_USER_ID, oid)

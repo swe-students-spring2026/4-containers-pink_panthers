@@ -24,6 +24,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from db import (
     create_user,
+    delete_outfit_for_user,
     find_user_by_username,
     get_all_outfits,
     get_outfits_by_user,
@@ -280,6 +281,36 @@ def analyze():
     return render_template("analyze.html")
 
 
+@app.route("/outfits")
+def outfits():
+    """Render saved outfits for the logged-in user."""
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
+
+    rows = []
+    for outfit in reversed(get_outfits_by_user(session.get("user_id"))):
+        row = dict(outfit)
+        row["id_str"] = str(outfit.get("_id")) if outfit.get("_id") else ""
+        row["display_score"] = round(float(outfit.get("coordination_score", 0)) * 100, 1)
+        rows.append(row)
+
+    return render_template("outfits.html", outfits=rows)
+
+
+@app.route("/outfits/<outfit_id>/delete", methods=["POST"])
+def delete_outfit(outfit_id):
+    """Delete one saved outfit for the logged-in user."""
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
+    if delete_outfit_for_user(session.get("user_id"), outfit_id):
+        flash("Outfit deleted.", "success")
+    else:
+        flash("Outfit not found.", "error")
+    return redirect(url_for("outfits"))
+
+
 @app.route("/stats")
 def stats():
     """Render the stats page."""
@@ -292,7 +323,10 @@ def stats():
 
     total = len(all_outfits)
     avg_score = (
-        round(sum(o.get("coordination_score", 0) for o in all_outfits) / total, 1)
+        round(
+            sum(float(o.get("coordination_score", 0)) * 100 for o in all_outfits) / total,
+            1,
+        )
         if total
         else 0
     )
@@ -300,7 +334,8 @@ def stats():
     user_total = len(user_outfits)
     user_avg = (
         round(
-            sum(o.get("coordination_score", 0) for o in user_outfits) / user_total,
+            sum(float(o.get("coordination_score", 0)) * 100 for o in user_outfits)
+            / user_total,
             1,
         )
         if user_total

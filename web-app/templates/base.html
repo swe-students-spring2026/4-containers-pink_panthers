@@ -130,6 +130,7 @@
         <a href="/" class="nav-logo">FitCheck ✦</a>
         <ul class="nav-links">
             <li><a href="/analyze" {% if request.path == '/analyze' %}class="active"{% endif %}>Analyze</a></li>
+            <li><a href="/outfits" {% if request.path.startswith('/outfits') %}class="active"{% endif %}>Outfits</a></li>
             <li><a href="/stats" {% if request.path == '/stats' %}class="active"{% endif %}>Statistics</a></li>
             <li><a href="/logout">Log Out</a></li>
         </ul>
