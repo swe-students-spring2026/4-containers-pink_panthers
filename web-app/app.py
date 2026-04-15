@@ -20,6 +20,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from db import (
     create_user,
     find_user_by_username,
+    get_all_outfits,
+    get_outfits_by_user,
     get_quote_by_tier,
     init_db,
     insert_outfit,
@@ -234,7 +236,33 @@ def stats():
     auth_redirect = require_login()
     if auth_redirect:
         return auth_redirect
-    return render_template("stats.html")
+
+    all_outfits = get_all_outfits()
+    user_outfits = get_outfits_by_user(session.get("user_id"))
+
+    total = len(all_outfits)
+    avg_score = (
+        round(sum(o.get("coordination_score", 0) for o in all_outfits) / total, 1)
+        if total
+        else 0
+    )
+
+    user_total = len(user_outfits)
+    user_avg = (
+        round(
+            sum(o.get("coordination_score", 0) for o in user_outfits) / user_total,
+            1,
+        )
+        if user_total
+        else 0
+    )
+
+    return render_template(
+        "stats.html",
+        avg_score=avg_score,
+        user_avg=user_avg,
+        total_outfits=total,
+    )
 
 
 if __name__ == "__main__":

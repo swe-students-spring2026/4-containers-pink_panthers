@@ -151,7 +151,9 @@ def test_api_outfit_requires_login(client):
     assert data["error"] == "authentication_required"
 
 
-def test_stats_requires_login(client):
+@patch("app.get_outfits_by_user", return_value=[])
+@patch("app.get_all_outfits", return_value=[])
+def test_stats_requires_login(mock_all, mock_user, client):
     """Test that accessing the stats page when not logged in redirects to the login page."""
     response = client.get("/stats", follow_redirects=False)
     assert response.status_code == 302
@@ -200,7 +202,9 @@ def test_analyze_loads_when_logged_in(client):
     assert response.status_code == 200
 
 
-def test_stats_loads_when_logged_in(client):
+@patch("app.get_outfits_by_user", return_value=[])
+@patch("app.get_all_outfits", return_value=[])
+def test_stats_loads_when_logged_in(mock_all, mock_user, client):
     """Test that the stats page loads when the user is logged in."""
     with client.session_transaction() as sess:
         sess["user_id"] = "abc123"
