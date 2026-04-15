@@ -22,10 +22,6 @@ cp .env.example .env
 cp web-app/.env.example web-app/.env
 cp machine-learning-client/.env.example machine-learning-client/.env
 ```
-#### 2(b). Add Secret Info from .env File
-- Go to discord pink_panther channel
-- Go to thread labeled ".env"
-- Copy content into all 3 .env files
 ### 3.Build and run containers
 ```bash
 docker-compose up --build -d
