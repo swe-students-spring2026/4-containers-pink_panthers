@@ -80,6 +80,14 @@ def require_login():
     return None
 
 
+def _outfit_request_fields():
+    """Return (top, bottom, photo_b64, timestamp) from JSON body."""
+    body = request.get_json(silent=True) or {}
+    top = (body.get("top") or "").strip()
+    bottom = (body.get("bottom") or "").strip()
+    return top, bottom, body.get("photo"), body.get("timestamp")
+
+
 @app.errorhandler(RequestEntityTooLarge)
 def _too_large(_e):
     """Return JSON when request body exceeds MAX_CONTENT_LENGTH."""
@@ -119,11 +127,7 @@ def api_save_outfit():
     except InvalidId:
         return jsonify({"ok": False, "error": "invalid_session"}), 401
 
-    payload = request.get_json(silent=True) or {}
-    top = (payload.get("top") or "").strip()
-    bottom = (payload.get("bottom") or "").strip()
-    photo_b64 = payload.get("photo")
-    ts = payload.get("timestamp")
+    top, bottom, photo_b64, ts = _outfit_request_fields()
 
     bad_req = None
     if not top or not bottom or not photo_b64:
@@ -142,10 +146,7 @@ def api_save_outfit():
         )
 
     tier = score_to_tier(score)
-
-    quote_doc = get_quote_by_tier(tier)
-    quote_text = quote_doc["text"] if quote_doc else None
-    quote_id = str(quote_doc["_id"]) if quote_doc and quote_doc.get("_id") else None
+    qdoc = get_quote_by_tier(tier)
 
     if not ts:
         ts = datetime.now(timezone.utc).isoformat()
@@ -156,8 +157,8 @@ def api_save_outfit():
         "bottom": bottom,
         "coordination_score": score,
         "tier": tier,
-        "quote": quote_text,
-        "quote_id": quote_id,
+        "quote": qdoc["text"] if qdoc else None,
+        "quote_id": str(qdoc["_id"]) if qdoc and qdoc.get("_id") else None,
         "timestamp": ts,
         "photo": photo_b64,
         "photo_mime": "image/jpeg",
@@ -177,8 +178,8 @@ def api_save_outfit():
             "user_id": str(user_oid),
             "coordination_score": score,
             "tier": tier,
-            "quote": quote_text,
-            "quote_id": quote_id,
+            "quote": qdoc["text"] if qdoc else None,
+            "quote_id": str(qdoc["_id"]) if qdoc and qdoc.get("_id") else None,
             "top": top,
             "bottom": bottom,
             "timestamp": ts,
