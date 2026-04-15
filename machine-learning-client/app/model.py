@@ -9,6 +9,7 @@ Outfit matching ML model.
 
 from typing import List, Tuple
 
+import math
 import numpy as np
 from pymongo import MongoClient
 from sklearn.ensemble import RandomForestRegressor
@@ -90,6 +91,11 @@ class OutfitModel:
         features = np.array([list(top_color) + list(bottom_color)])
 
         score = self.model.predict(features)[0]
+
+        # tree_predictions = np.array([tree.predict(features)[0] for tree in self.model.estimators_])
+
+        # Equation for making values more normal
+        score = math.log10(score) / 2 + 1
 
         # Clamp between 0 and 1
         score = max(0.0, min(1.0, float(score)))
