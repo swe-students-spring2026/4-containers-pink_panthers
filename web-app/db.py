@@ -7,19 +7,91 @@ from datetime import datetime
 import pymongo
 from bson import ObjectId
 from dotenv import load_dotenv  # pylint: disable=import-error
+from pymongo.errors import PyMongoError
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+_app_dir = Path(__file__).resolve().parent
+_repo_dir = _app_dir.parent
 
-client = pymongo.MongoClient(os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/"))
-db = client["outfit_db"]
+load_dotenv(_app_dir / ".env")
+load_dotenv(_repo_dir / ".env")
+
+_mongo_uri = os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/")
+_db_name = os.environ.get("DB_NAME", "outfit_db")
+
+client = pymongo.MongoClient(_mongo_uri)
+db = client[_db_name]
 users_collection = db["users"]
-outfits_collection = db["outfits"]
 quotes_collection = db["quotes"]
+
+_DEFAULT_QUOTES = [
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b43"),
+        "tier": "high",
+        "text": "Okayyyy fashion icon 💅 this combo is eating.",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b44"),
+        "tier": "high",
+        "text": "Color harmony level: main character energy.",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b45"),
+        "tier": "high",
+        "text": "This outfit? Approved by the fashion gods ✨",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b46"),
+        "tier": "medium",
+        "text": "Hmm… it's giving 'almost there'.",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b47"),
+        "tier": "medium",
+        "text": "Not bad, but your outfit is playing it a little safe.",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b48"),
+        "tier": "medium",
+        "text": "We see the vision… but it needs a bit more spice 🌶️",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b49"),
+        "tier": "low",
+        "text": "Respectfully… these colors are arguing 😭",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b4a"),
+        "tier": "low",
+        "text": "This combo said 'let's not coordinate today'.",
+        "is_active": True,
+    },
+    {
+        "_id": ObjectId("69de7f3fd029128a5b5a7b4b"),
+        "tier": "low",
+        "text": "This combo is bold... maybe a little too bold.",
+        "is_active": True,
+    },
+]
+
+
+def _seed_quotes_if_empty():
+    """Insert starter catalog rows so outfits can store real quote text and ids."""
+    if quotes_collection.find_one() is not None:
+        return
+    quotes_collection.insert_many(_DEFAULT_QUOTES)
 
 
 def init_db():
     """Initialize database indexes."""
     users_collection.create_index("username", unique=True)
+    _seed_quotes_if_empty()
 
 
 def create_user(username, password_hash):
@@ -29,6 +101,7 @@ def create_user(username, password_hash):
         "password_hash": password_hash,
         "created_at": datetime.now(),
         "last_login_at": None,
+        "outfits": [],
     }
     return users_collection.insert_one(user).inserted_id
 
@@ -52,9 +125,24 @@ def update_last_login(user_id):
 
 
 def insert_outfit(doc):
-    """Insert one outfit document; return the new document's ObjectId."""
-    doc["created_at"] = datetime.now()  # Store database insertion time.
-    return outfits_collection.insert_one(doc).inserted_id
+    """Append one outfit to the user's outfits array; return the new subdocument _id."""
+    payload = dict(doc)
+    user_id = payload.pop("user_id", None)
+    if user_id is None:
+        raise PyMongoError("outfit document missing user_id")
+
+    outfit_id = ObjectId()
+    payload["_id"] = outfit_id
+    payload["created_at"] = datetime.now()
+
+    result = users_collection.update_one(
+        {"_id": user_id},
+        {"$push": {"outfits": payload}},
+    )
+    if result.matched_count == 0:
+        raise PyMongoError("user not found for outfit insert")
+
+    return outfit_id
 
 
 def get_all_outfits():

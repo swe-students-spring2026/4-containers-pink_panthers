@@ -7,11 +7,28 @@ from bson import ObjectId
 import db
 
 
+@patch("db.quotes_collection")
 @patch("db.users_collection")
-def test_init_db_creates_username_index(mock_users_collection):
+def test_init_db_creates_username_index(mock_users_collection, mock_quotes_collection):
     """Test that init_db creates a unique index on the username field."""
+    mock_quotes_collection.find_one.return_value = {"_id": "exists"}
     db.init_db()
     mock_users_collection.create_index.assert_called_once_with("username", unique=True)
+    mock_quotes_collection.insert_many.assert_not_called()
+
+
+@patch("db.quotes_collection")
+@patch("db.users_collection")
+def test_init_db_seeds_quotes_when_catalog_empty(
+    mock_users_collection, mock_quotes_collection
+):
+    """Test that init_db inserts default quotes when the quotes collection is empty."""
+    mock_quotes_collection.find_one.return_value = None
+    db.init_db()
+    mock_quotes_collection.insert_many.assert_called_once()
+    batch = mock_quotes_collection.insert_many.call_args[0][0]
+    assert len(batch) == 9
+    assert {q["tier"] for q in batch} == {"low", "medium", "high"}
 
 
 @patch("db.users_collection")
@@ -27,6 +44,7 @@ def test_create_user_inserts_document(mock_users_collection):
     assert inserted_doc["username"] == "sara"
     assert inserted_doc["password_hash"] == "hashed-password"
     assert inserted_doc["last_login_at"] is None
+    assert inserted_doc["outfits"] == []
     assert "created_at" in inserted_doc
 
 
@@ -60,13 +78,14 @@ def test_update_last_login_calls_update_one(mock_users_collection):
     assert "last_login_at" in args[1]["$set"]
 
 
-@patch("db.outfits_collection")
-def test_insert_outfit_adds_created_at_and_inserts(mock_outfits_collection):
-    """Test that insert_outfit adds a created_at timestamp and inserts the document."""
-    fake_id = ObjectId()
-    mock_outfits_collection.insert_one.return_value.inserted_id = fake_id
+@patch("db.users_collection")
+def test_insert_outfit_pushes_to_user_outfits(mock_users_collection):
+    """Test that insert_outfit appends an outfit to users.outfits via $push with _id and created_at."""
+    mock_users_collection.update_one.return_value = MagicMock(matched_count=1)
+    uid = ObjectId()
 
     doc = {
+        "user_id": uid,
         "top": "#ffffff",
         "bottom": "#000000",
         "photo": "dummy",
@@ -74,12 +93,18 @@ def test_insert_outfit_adds_created_at_and_inserts(mock_outfits_collection):
 
     result = db.insert_outfit(doc)
 
-    assert result == fake_id
-    inserted_doc = mock_outfits_collection.insert_one.call_args[0][0]
-    assert inserted_doc["top"] == "#ffffff"
-    assert inserted_doc["bottom"] == "#000000"
-    assert inserted_doc["photo"] == "dummy"
-    assert "created_at" in inserted_doc
+    assert isinstance(result, ObjectId)
+    mock_users_collection.update_one.assert_called_once()
+    query, update = mock_users_collection.update_one.call_args[0]
+    assert query == {"_id": uid}
+    assert "$push" in update
+    pushed = update["$push"]["outfits"]
+    assert pushed["top"] == "#ffffff"
+    assert pushed["bottom"] == "#000000"
+    assert pushed["photo"] == "dummy"
+    assert pushed["_id"] == result
+    assert "user_id" not in pushed
+    assert "created_at" in pushed
 
 
 @patch("db.quotes_collection")

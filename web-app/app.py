@@ -1,6 +1,9 @@
 """FitCheck Flask application."""
 
+import json
 import os
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 
 from flask import (
@@ -13,6 +16,8 @@ from flask import (
     session,
     url_for,
 )
+from bson import ObjectId
+from bson.errors import InvalidId
 from pymongo.errors import PyMongoError
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -45,11 +50,44 @@ def score_to_tier(score):
     return "low"
 
 
+def fetch_coordination_score(top_hex: str, bottom_hex: str) -> float:
+    """Return ML coordination score for two hex colors, or 0.0 when ML_BASE_URL is unset."""
+    base = (os.environ.get("ML_BASE_URL") or "").strip().rstrip("/")
+    if not base:
+        return 0.0
+    url = f"{base.rstrip('/')}/predict"
+    body = json.dumps({"top": top_hex, "bottom": bottom_hex}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(exc.read().decode("utf-8", errors="replace")) from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(str(exc.reason)) from exc
+    if not payload.get("ok"):
+        raise RuntimeError(str(payload.get("error", "ml_error")))
+    return float(payload["score"])
+
+
 def require_login():
     """Redirect to login page if the user is not authenticated."""
     if not session.get("user_id"):
         return redirect(url_for("login"))
     return None
+
+
+def _outfit_request_fields():
+    """Return (top, bottom, photo_b64, timestamp) from JSON body."""
+    body = request.get_json(silent=True) or {}
+    top = (body.get("top") or "").strip()
+    bottom = (body.get("bottom") or "").strip()
+    return top, bottom, body.get("photo"), body.get("timestamp")
 
 
 @app.errorhandler(RequestEntityTooLarge)
@@ -83,36 +121,46 @@ def index():
 @app.route("/api/outfit", methods=["POST"])
 def api_save_outfit():
     """Accept JSON outfit payload and persist it to MongoDB."""
-    if not session.get("user_id"):
+    raw_uid = session.get("user_id")
+    if not raw_uid:
         return jsonify({"ok": False, "error": "authentication_required"}), 401
+    try:
+        user_oid = ObjectId(raw_uid)
+    except InvalidId:
+        return jsonify({"ok": False, "error": "invalid_session"}), 401
 
-    payload = request.get_json(silent=True) or {}
-    top = (payload.get("top") or "").strip()
-    bottom = (payload.get("bottom") or "").strip()
-    photo_b64 = payload.get("photo")
-    ts = payload.get("timestamp")
+    top, bottom, photo_b64, ts = _outfit_request_fields()
 
+    bad_req = None
     if not top or not bottom or not photo_b64:
-        return jsonify({"error": "top, bottom, and photo are required"}), 400
-    if not top.startswith("#") or not bottom.startswith("#"):
-        return jsonify({"error": "top and bottom must be #RRGGBB hex"}), 400
+        bad_req = "top, bottom, and photo are required"
+    elif not top.startswith("#") or not bottom.startswith("#"):
+        bad_req = "top and bottom must be #RRGGBB hex"
+    if bad_req:
+        return jsonify({"error": bad_req}), 400
 
-    score = 0
+    try:
+        score = fetch_coordination_score(top, bottom)
+    except RuntimeError as exc:
+        return (
+            jsonify({"ok": False, "error": "scoring_failed", "detail": str(exc)}),
+            503,
+        )
 
     tier = score_to_tier(score)
-
-    quote_doc = get_quote_by_tier(tier)
-    quote_text = quote_doc["text"] if quote_doc else None
+    qdoc = get_quote_by_tier(tier)
 
     if not ts:
         ts = datetime.now(timezone.utc).isoformat()
 
     doc = {
+        "user_id": user_oid,
         "top": top,
         "bottom": bottom,
         "coordination_score": score,
         "tier": tier,
-        "quote": quote_text,
+        "quote": qdoc["text"] if qdoc else None,
+        "quote_id": str(qdoc["_id"]) if qdoc and qdoc.get("_id") else None,
         "timestamp": ts,
         "photo": photo_b64,
         "photo_mime": "image/jpeg",
@@ -129,9 +177,11 @@ def api_save_outfit():
         {
             "ok": True,
             "id": str(oid),
+            "user_id": str(user_oid),
             "coordination_score": score,
             "tier": tier,
-            "quote": quote_text,
+            "quote": qdoc["text"] if qdoc else None,
+            "quote_id": str(qdoc["_id"]) if qdoc and qdoc.get("_id") else None,
             "top": top,
             "bottom": bottom,
             "timestamp": ts,
