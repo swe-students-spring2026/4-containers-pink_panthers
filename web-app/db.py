@@ -159,7 +159,7 @@ def get_outfits_by_user(user_id):
         return []
     try:
         user = users_collection.find_one({"_id": ObjectId(user_id)})
-    except Exception:
+    except (ValueError, TypeError):
         return []
     if not user:
         return []
