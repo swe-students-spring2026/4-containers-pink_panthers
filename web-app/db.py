@@ -146,13 +146,24 @@ def insert_outfit(doc):
 
 
 def get_all_outfits():
-    """Return all outfit documents."""
-    return list(outfits_collection.find())
+    """Return all outfit documents from all users."""
+    all_outfits = []
+    for user in users_collection.find():
+        all_outfits.extend(user.get("outfits", []))
+    return all_outfits
 
 
 def get_outfits_by_user(user_id):
     """Return all outfits for a specific user."""
-    return list(outfits_collection.find({"user_id": user_id}))
+    if not user_id:
+        return []
+    try:
+        user = users_collection.find_one({"_id": ObjectId(user_id)})
+    except Exception:
+        return []
+    if not user:
+        return []
+    return user.get("outfits", [])
 
 
 def get_quote_by_tier(tier):
