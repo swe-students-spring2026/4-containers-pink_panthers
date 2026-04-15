@@ -65,6 +65,8 @@ def get_all_outfits():
 def get_outfits_by_user(user_id):
     """Return all outfits for a specific user."""
     return list(outfits_collection.find({"user_id": user_id}))
+
+
 def get_quote_by_tier(tier):
     """Return one random active quote for the given tier."""
     results = list(
