@@ -2,7 +2,7 @@
 
 import os
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request  # pylint: disable=import-error
 
 from app.model import OutfitModel
 
@@ -11,6 +11,7 @@ _model_holder = {}
 
 
 def get_model():
+    """Return a trained OutfitModel, caching success or the first training error."""
     if "m" in _model_holder:
         return _model_holder["m"]
     if "train_error" in _model_holder:
@@ -28,11 +29,13 @@ def get_model():
 
 @app.route("/health", methods=["GET"])
 def health():
+    """Liveness check for orchestration."""
     return jsonify({"ok": True})
 
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    """JSON body: top, bottom (#RRGGBB each). Returns ok and score in [0, 1]."""
     data = request.get_json(silent=True) or {}
     top = (data.get("top") or "").strip()
     bottom = (data.get("bottom") or "").strip()
