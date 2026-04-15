@@ -233,6 +233,9 @@ def analyze():
 @app.route("/stats")
 def stats():
     """Render the stats page."""
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
 
     all_outfits = get_all_outfits()
     user_outfits = get_outfits_by_user(session.get("user_id"))
@@ -260,7 +263,6 @@ def stats():
         user_avg=user_avg,
         total_outfits=total,
     )
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "3000")), debug=True)
