@@ -1,28 +1,67 @@
+networks:
+  fitcheck:
+    driver: bridge
+
 services:
   web:
     build: ./web-app
+    networks:
+      - fitcheck
     ports:
       - "${WEB_PORT:-3000}:3000"
     environment:
-      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
+      MONGO_URI: mongodb://mongodb:27017/
       SECRET_KEY: ${SECRET_KEY:-dev}
       PORT: "${WEB_PORT:-3000}"
+      SKIP_DB_INIT: "0"
+      ML_BASE_URL: http://ml:5001
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
+      ml:
+        condition: service_started
     command: python app.py
 
   ml:
     build: ./machine-learning-client
+    networks:
+      - fitcheck
+    ports:
+      - "${ML_PORT:-5001}:5001"
     environment:
-      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
+      MONGO_URI: mongodb://mongodb:27017/
       PORT: "${ML_PORT:-5001}"
+      DB_NAME: ${DB_NAME:-outfit_db}
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
     command: python main.py
+
+  seed:
+    build: ./machine-learning-client
+    networks:
+      - fitcheck
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/
+      PORT: "${ML_PORT:-5001}"
+      DB_NAME: ${DB_NAME:-outfit_db}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    command: python seed.py
 
   mongodb:
     image: mongo:latest
+    networks:
+      - fitcheck
     ports:
       - "${MONGO_HOST_PORT:-27017}:27017"
     volumes:
       - ./db:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12

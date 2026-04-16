@@ -52,7 +52,8 @@
         capMode = "idle",
         cdTimer,
         jpgUrl,
-        colors = null;
+        colors = null,
+        firstResultTimer;
 
     function toHex(r, g, b) {
         function h(x) {
@@ -147,6 +148,14 @@
         return top && bot ? { top: top, bot: bot } : null;
     }
 
+    function escHtml(s) {
+        return String(s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
     function swatch(hex) {
         return (
             '<span style="display:inline-block;width:16px;height:16px;border-radius:3px;vertical-align:middle;margin:0 6px 0 0;border:1px solid rgba(0,0,0,0.12);background:' +
@@ -237,11 +246,17 @@
                     .then(function (res) {
                         var d = res.data;
                         if (res.httpOk && d.ok) {
-                            capMeta.innerHTML =
-                                baseMeta +
+                            var pct = Math.round(Number(d.coordination_score) * 100);
+                            var coordLine =
                                 "<br><strong>Coordination</strong> " +
-                                d.coordination_score +
+                                pct +
                                 "/100 · <span style='color:#4a7c59'>saved</span>";
+                            var quoteLine = d.quote
+                                ? "<br><span style='display:block;margin-top:0.5rem;font-style:italic;color:#444;line-height:1.4'>" +
+                                  escHtml(d.quote) +
+                                  "</span>"
+                                : "";
+                            capMeta.innerHTML = baseMeta + coordLine + quoteLine;
                             return;
                         }
                         var msg =
@@ -313,6 +328,8 @@
         pose.onResults(function (r) {
             if (!ready) {
                 ready = true;
+                if (firstResultTimer) clearTimeout(firstResultTimer);
+                firstResultTimer = null;
                 msg.style.display = "none";
             }
             var lm = r.poseLandmarks, vw = v.videoWidth, vh = v.videoHeight, g = bands(lm),
@@ -339,18 +356,71 @@
                 }
             } else stable = 0;
         });
+        msg.textContent = "Position yourself in frame";
+        msg.style.display = "flex";
+        firstResultTimer = setTimeout(function () {
+            if (!ready) {
+                msg.textContent =
+                    "Pose model is slow to start — try \"Start camera\" again or refresh the page.";
+            }
+        }, 15000);
         requestAnimationFrame(tick);
     }
 
+    function whenVideoReady(cb) {
+        var done = false;
+        var pollId = null;
+        function detach() {
+            v.removeEventListener("loadeddata", tryReady);
+            v.removeEventListener("loadedmetadata", tryReady);
+            v.removeEventListener("canplay", tryReady);
+            v.removeEventListener("playing", tryReady);
+        }
+        function finish() {
+            if (done) return;
+            if (!(v.videoWidth > 0 && v.videoHeight > 0)) return;
+            done = true;
+            if (pollId !== null) {
+                clearInterval(pollId);
+                pollId = null;
+            }
+            detach();
+            cb();
+        }
+        function tryReady() {
+            finish();
+        }
+        v.addEventListener("loadeddata", tryReady);
+        v.addEventListener("loadedmetadata", tryReady);
+        v.addEventListener("canplay", tryReady);
+        v.addEventListener("playing", tryReady);
+        var n = 0;
+        pollId = setInterval(function () {
+            tryReady();
+            if (done) return;
+            if (++n > 200) {
+                clearInterval(pollId);
+                pollId = null;
+                detach();
+                msg.textContent = "Camera preview did not start — click Start camera again.";
+            }
+        }, 50);
+        tryReady();
+    }
+
     document.getElementById("cam-start").onclick = function () {
+        if (firstResultTimer) {
+            clearTimeout(firstResultTimer);
+            firstResultTimer = null;
+        }
         navigator.mediaDevices
             .getUserMedia({ video: { facingMode: "user" }, audio: false })
             .then(function (s) {
                 v.srcObject = s;
                 msg.textContent = "Loading…";
-                v.onloadeddata = function () {
+                whenVideoReady(function () {
                     if (!pose) init();
-                };
+                });
             })
             .catch(function () {
                 msg.textContent = "Camera blocked.";

@@ -1,6 +1,9 @@
 """FitCheck Flask application."""
 
+import json
 import os
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 
 from flask import (
@@ -13,13 +16,19 @@ from flask import (
     session,
     url_for,
 )
+from bson import ObjectId
+from bson.errors import InvalidId
 from pymongo.errors import PyMongoError
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from db import (
     create_user,
+    delete_outfit_for_user,
     find_user_by_username,
+    get_all_outfits,
+    get_outfits_by_user,
+    get_quote_by_tier,
     init_db,
     insert_outfit,
     update_last_login,
@@ -31,6 +40,55 @@ app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 
 if os.environ.get("SKIP_DB_INIT", "1") != "1":
     init_db()
+
+
+def score_to_tier(score):
+    """Convert a numeric coordination score into a quote tier."""
+    if score >= 0.8:
+        return "high"
+    if score >= 0.5:
+        return "medium"
+    return "low"
+
+
+def fetch_coordination_score(top_hex: str, bottom_hex: str) -> float:
+    """Return ML coordination score for two hex colors, or 0.0 when ML_BASE_URL is unset."""
+    base = (os.environ.get("ML_BASE_URL") or "").strip().rstrip("/")
+    if not base:
+        return 0.0
+    url = f"{base.rstrip('/')}/predict"
+    body = json.dumps({"top": top_hex, "bottom": bottom_hex}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(exc.read().decode("utf-8", errors="replace")) from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(str(exc.reason)) from exc
+    if not payload.get("ok"):
+        raise RuntimeError(str(payload.get("error", "ml_error")))
+    return float(payload["score"])
+
+
+def require_login():
+    """Redirect to login page if the user is not authenticated."""
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    return None
+
+
+def _outfit_request_fields():
+    """Return (top, bottom, photo_b64, timestamp) from JSON body."""
+    body = request.get_json(silent=True) or {}
+    top = (body.get("top") or "").strip()
+    bottom = (body.get("bottom") or "").strip()
+    return top, bottom, body.get("photo"), body.get("timestamp")
 
 
 @app.errorhandler(RequestEntityTooLarge)
@@ -56,31 +114,54 @@ def _ctx():
 @app.route("/")
 def index():
     """Redirect home to the analyze page."""
-    return redirect(url_for("analyze"))
+    if session.get("user_id"):
+        return redirect(url_for("analyze"))
+    return redirect(url_for("login"))
 
 
 @app.route("/api/outfit", methods=["POST"])
 def api_save_outfit():
     """Accept JSON outfit payload and persist it to MongoDB."""
-    payload = request.get_json(silent=True) or {}
-    top = (payload.get("top") or "").strip()
-    bottom = (payload.get("bottom") or "").strip()
-    photo_b64 = payload.get("photo")
-    ts = payload.get("timestamp")
+    raw_uid = session.get("user_id")
+    if not raw_uid:
+        return jsonify({"ok": False, "error": "authentication_required"}), 401
+    try:
+        user_oid = ObjectId(raw_uid)
+    except InvalidId:
+        return jsonify({"ok": False, "error": "invalid_session"}), 401
 
+    top, bottom, photo_b64, ts = _outfit_request_fields()
+
+    bad_req = None
     if not top or not bottom or not photo_b64:
-        return jsonify({"error": "top, bottom, and photo are required"}), 400
-    if not top.startswith("#") or not bottom.startswith("#"):
-        return jsonify({"error": "top and bottom must be #RRGGBB hex"}), 400
+        bad_req = "top, bottom, and photo are required"
+    elif not top.startswith("#") or not bottom.startswith("#"):
+        bad_req = "top and bottom must be #RRGGBB hex"
+    if bad_req:
+        return jsonify({"error": bad_req}), 400
 
-    score = 0
+    try:
+        score = fetch_coordination_score(top, bottom)
+    except RuntimeError as exc:
+        return (
+            jsonify({"ok": False, "error": "scoring_failed", "detail": str(exc)}),
+            503,
+        )
+
+    tier = score_to_tier(score)
+    qdoc = get_quote_by_tier(tier)
+
     if not ts:
         ts = datetime.now(timezone.utc).isoformat()
 
     doc = {
+        "user_id": user_oid,
         "top": top,
         "bottom": bottom,
         "coordination_score": score,
+        "tier": tier,
+        "quote": qdoc["text"] if qdoc else None,
+        "quote_id": str(qdoc["_id"]) if qdoc and qdoc.get("_id") else None,
         "timestamp": ts,
         "photo": photo_b64,
         "photo_mime": "image/jpeg",
@@ -97,7 +178,11 @@ def api_save_outfit():
         {
             "ok": True,
             "id": str(oid),
+            "user_id": str(user_oid),
             "coordination_score": score,
+            "tier": tier,
+            "quote": qdoc["text"] if qdoc else None,
+            "quote_id": str(qdoc["_id"]) if qdoc and qdoc.get("_id") else None,
             "top": top,
             "bottom": bottom,
             "timestamp": ts,
@@ -189,13 +274,83 @@ def logout():
 @app.route("/analyze")
 def analyze():
     """Render the webcam / outfit capture page."""
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
+
     return render_template("analyze.html")
+
+
+@app.route("/outfits")
+def outfits():
+    """Render saved outfits for the logged-in user."""
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
+
+    rows = []
+    for outfit in reversed(get_outfits_by_user(session.get("user_id"))):
+        row = dict(outfit)
+        row["id_str"] = str(outfit.get("_id")) if outfit.get("_id") else ""
+        row["display_score"] = round(
+            float(outfit.get("coordination_score", 0)) * 100, 1
+        )
+        rows.append(row)
+
+    return render_template("outfits.html", outfits=rows)
+
+
+@app.route("/outfits/<outfit_id>/delete", methods=["POST"])
+def delete_outfit(outfit_id):
+    """Delete one saved outfit for the logged-in user."""
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
+    if delete_outfit_for_user(session.get("user_id"), outfit_id):
+        flash("Outfit deleted.", "success")
+    else:
+        flash("Outfit not found.", "error")
+    return redirect(url_for("outfits"))
 
 
 @app.route("/stats")
 def stats():
     """Render the stats page."""
-    return render_template("stats.html")
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
+
+    all_outfits = get_all_outfits()
+    user_outfits = get_outfits_by_user(session.get("user_id"))
+
+    total = len(all_outfits)
+    avg_score = (
+        round(
+            sum(float(o.get("coordination_score", 0)) * 100 for o in all_outfits)
+            / total,
+            1,
+        )
+        if total
+        else 0
+    )
+
+    user_total = len(user_outfits)
+    user_avg = (
+        round(
+            sum(float(o.get("coordination_score", 0)) * 100 for o in user_outfits)
+            / user_total,
+            1,
+        )
+        if user_total
+        else 0
+    )
+
+    return render_template(
+        "stats.html",
+        avg_score=avg_score,
+        user_avg=user_avg,
+        total_outfits=total,
+    )
 
 
 if __name__ == "__main__":
