@@ -3,8 +3,7 @@
 [![ML Client CI](https://github.com/swe-students-spring2026/4-containers-pink_panthers/actions/workflows/ml-ci.yml/badge.svg)](https://github.com/swe-students-spring2026/4-containers-pink_panthers/actions/workflows/ml-ci.yml)
 
 # FitCheck 
-Our web app helps users analyze if the outfit they are wearing has good color coordination. 
-This way whether you are colorblind (or just have no sense of style) you can make sure your fit is great.
+Our web app helps users in selecting visually coordinated outfits by analyzing the colors of their clothing and providing feedback on how well the combination matches. The application assists people who are colorblind, "styleblind", uncertain about fashion choices, or seeking quick styling assistance make more confident wardrobe decisions.
 
 ## Team Members:
 - [Lily](https://github.com/lilylorand)
