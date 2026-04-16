@@ -107,6 +107,27 @@ def test_insert_outfit_pushes_to_user_outfits(mock_users_collection):
     assert "created_at" in pushed
 
 
+@patch("db.users_collection")
+def test_delete_outfit_for_user_pulls_from_array(mock_users_collection):
+    """Delete helper pulls one subdocument from outfits."""
+    uid = "507f1f77bcf86cd799439011"
+    oid = "507f1f77bcf86cd799439012"
+    mock_users_collection.update_one.return_value = MagicMock(modified_count=1)
+    ok = db.delete_outfit_for_user(uid, oid)
+    assert ok is True
+    query, update = mock_users_collection.update_one.call_args[0]
+    assert query == {"_id": ObjectId(uid)}
+    assert update == {"$pull": {"outfits": {"_id": ObjectId(oid)}}}
+
+
+@patch("db.users_collection")
+def test_delete_outfit_for_user_returns_false_for_invalid_ids(mock_users_collection):
+    """Delete helper should reject invalid ids."""
+    ok = db.delete_outfit_for_user("bad", "also-bad")
+    assert ok is False
+    mock_users_collection.update_one.assert_not_called()
+
+
 @patch("db.quotes_collection")
 def test_get_quote_by_tier_returns_random_quote_when_found(mock_quotes_collection):
     """Test that get_quote_by_tier returns a random active quote for the given tier."""

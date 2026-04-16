@@ -160,6 +160,14 @@ def test_stats_requires_login(mock_all, mock_user, client):
     assert "/login" in response.headers["Location"]
 
 
+@patch("app.get_outfits_by_user", return_value=[])
+def test_outfits_requires_login(mock_user, client):
+    """Test that outfits requires login."""
+    response = client.get("/outfits", follow_redirects=False)
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+
 def test_index_redirects_to_analyze_when_logged_in(client):
     """Test that accessing the index page when logged in redirects to the analyze page."""
     with client.session_transaction() as sess:
@@ -211,4 +219,14 @@ def test_stats_loads_when_logged_in(mock_all, mock_user, client):
         sess["username"] = "sara123"
 
     response = client.get("/stats")
+    assert response.status_code == 200
+
+
+@patch("app.get_outfits_by_user", return_value=[])
+def test_outfits_loads_when_logged_in(mock_user, client):
+    """Test that outfits page loads when logged in."""
+    with client.session_transaction() as sess:
+        sess["user_id"] = "abc123"
+        sess["username"] = "sara123"
+    response = client.get("/outfits")
     assert response.status_code == 200

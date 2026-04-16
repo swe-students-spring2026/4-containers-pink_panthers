@@ -6,6 +6,7 @@ from datetime import datetime
 
 import pymongo
 from bson import ObjectId
+from bson.errors import InvalidId
 from dotenv import load_dotenv  # pylint: disable=import-error
 from pymongo.errors import PyMongoError
 
@@ -164,6 +165,22 @@ def get_outfits_by_user(user_id):
     if not user:
         return []
     return user.get("outfits", [])
+
+
+def delete_outfit_for_user(user_id, outfit_id):
+    """Delete one outfit subdocument for a user. Returns True when deleted."""
+    if not user_id or not outfit_id:
+        return False
+    try:
+        user_oid = ObjectId(user_id)
+        outfit_oid = ObjectId(outfit_id)
+    except (InvalidId, ValueError, TypeError):
+        return False
+    result = users_collection.update_one(
+        {"_id": user_oid},
+        {"$pull": {"outfits": {"_id": outfit_oid}}},
+    )
+    return result.modified_count > 0
 
 
 def get_quote_by_tier(tier):
